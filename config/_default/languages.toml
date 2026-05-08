@@ -1,0 +1,19 @@
+[en]
+  label = "English"
+  weight = 1
+  title = "Fumiya Oura"
+
+  [en.params.author]
+    name = "Fumiya Oura"
+    headline = "Nuclear & Particle Physics Researcher"
+    bio = "JAEA / Advanced Science Research Center"
+
+[ja]
+  label = "日本語"
+  weight = 2
+  title = "大浦 文也"
+
+  [ja.params.author]
+    name = "大浦 文也"
+    headline = "原子核・素粒子物理学 研究者"
+    bio = "日本原子力研究開発機構 先端基礎研究センター"

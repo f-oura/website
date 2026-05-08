@@ -1,0 +1,48 @@
+# -- Main Menu (English) --
+
+[[main]]
+  name = "About"
+  pageRef = "about"
+  weight = 10
+
+[[main]]
+  name = "Research"
+  pageRef = "research"
+  weight = 20
+
+[[main]]
+  name = "Publications"
+  pageRef = "publications"
+  weight = 30
+
+[[main]]
+  name = "Talks"
+  pageRef = "talks"
+  weight = 40
+
+[[main]]
+  name = "Grants"
+  pageRef = "grants"
+  weight = 50
+
+[[main]]
+  name = "News"
+  pageRef = "news"
+  weight = 60
+
+# -- Footer Menu --
+
+[[footer]]
+  name = "Collaborators"
+  pageRef = "collaborators"
+  weight = 10
+
+[[footer]]
+  name = "Gallery"
+  pageRef = "gallery"
+  weight = 20
+
+[[footer]]
+  name = "Off Topic"
+  pageRef = "offtopic"
+  weight = 30

@@ -1,0 +1,95 @@
+/* Custom styles for academic website */
+
+/* Publication card styling */
+.publication-card {
+  background: rgba(var(--color-neutral-200), 0.5);
+  border-left: 4px solid rgb(var(--color-primary-500));
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  border-radius: 0 0.5rem 0.5rem 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.dark .publication-card {
+  background: rgba(var(--color-neutral-800), 0.8);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.publication-card h3 {
+  margin-top: 0 !important;
+  margin-bottom: 0.75rem !important;
+  color: rgb(var(--color-primary-600));
+  font-size: 1.1rem;
+  line-height: 1.4;
+}
+
+.dark .publication-card h3 {
+  color: rgb(var(--color-primary-400));
+}
+
+.publication-card p {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+.publication-card strong {
+  color: rgb(var(--color-neutral-700));
+}
+
+.dark .publication-card strong {
+  color: rgb(var(--color-neutral-300));
+}
+
+.publication-card em {
+  color: rgb(var(--color-neutral-600));
+}
+
+.dark .publication-card em {
+  color: rgb(var(--color-neutral-400));
+}
+
+/* Link styling in publications */
+.publication-card a {
+  color: rgb(var(--color-primary-500));
+  text-decoration: none;
+  border-bottom: 1px dashed rgb(var(--color-primary-500));
+  transition: border-bottom-style 0.2s ease;
+}
+
+.publication-card a:hover {
+  border-bottom-style: solid;
+}
+
+/* Research section styling */
+.prose h2 {
+  border-bottom: 2px solid rgb(var(--color-primary-500));
+  padding-bottom: 0.5rem;
+}
+
+/* Horizontal rule styling */
+hr {
+  border-color: rgba(var(--color-neutral-300), 0.5);
+  margin: 2.5rem 0;
+}
+
+.dark hr {
+  border-color: rgba(var(--color-neutral-600), 0.5);
+}
+
+/* Smooth transitions for dark mode */
+* {
+  transition: background-color 0.2s ease,
+              color 0.2s ease,
+              border-color 0.2s ease,
+              box-shadow 0.2s ease;
+}
+
+/* Language switcher styling */
+.appearance-switcher {
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.appearance-switcher:hover {
+  opacity: 1;
+}

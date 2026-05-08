@@ -1,0 +1,12 @@
+# Hugo
+public/
+resources/_gen/
+.hugo_build.lock
+
+# Editor
+*~
+*.swp
+.DS_Store
+
+# Node
+node_modules/
