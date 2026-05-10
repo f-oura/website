@@ -1,9 +1,9 @@
 # -- Theme Options --
 # https://jpanther.github.io/congo/docs/configuration/#theme-parameters
 
-colorScheme = "ocean"
+colorScheme = "laboratory"
 defaultAppearance = "light"
-autoSwitchAppearance = true
+autoSwitchAppearance = false
 
 description = "Nuclear and Particle Physics Researcher at JAEA"
 mainSections = ["publications", "research"]

@@ -3,7 +3,9 @@ title: "Fumiya Oura"
 description: "Nuclear and Particle Physics Researcher at JAEA"
 ---
 
-Welcome to my academic website. I am a researcher specializing in **nuclear and particle physics** at the Japan Atomic Energy Agency (JAEA), Advanced Science Research Center.
+# Exploring Particles, Decoding the Universe
+
+I am a researcher at the Japan Atomic Energy Agency (JAEA), Advanced Science Research Center, exploring the fundamental nature of matter through nuclear and particle physics.
 
 ## Research Focus
 
