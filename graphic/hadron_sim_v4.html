@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hadron Simulation</title>
+<style>
+  @media (prefers-color-scheme: dark) {
+    :root{--bg:#0e0e0e;--fg:rgba(255,255,255,0.82);--fg2:rgba(255,255,255,0.32);--fg3:rgba(255,255,255,0.08);}
+  }
+  @media (prefers-color-scheme: light) {
+    :root{--bg:#f8f7f4;--fg:rgba(0,0,0,0.80);--fg2:rgba(0,0,0,0.35);--fg3:rgba(0,0,0,0.08);}
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);font-family:sans-serif;}
+  .wrap{position:relative;width:100%;max-width:900px;margin:0 auto;overflow:hidden;background:var(--bg);border-radius:12px;}
+  canvas{display:block;width:100%;}
+  .controls{display:flex;flex-wrap:wrap;gap:10px 18px;padding:10px 16px;border-top:0.5px solid var(--fg3);align-items:center;}
+  .ctrl-group{display:flex;align-items:center;gap:7px;}
+  .ctrl-label{font-size:12px;color:var(--fg2);white-space:nowrap;}
+  .ctrl-val{font-size:12px;color:var(--fg);min-width:16px;text-align:right;}
+  input[type=range]{width:80px;accent-color:var(--fg);}
+  button{font-size:11px;padding:4px 10px;border-radius:6px;border:0.5px solid var(--fg2);background:transparent;color:var(--fg2);cursor:pointer;}
+  button:hover{background:var(--fg3);}
+  .status{font-size:11px;color:var(--fg2);padding:4px 16px 10px;min-height:16px;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <canvas id="cv"></canvas>
+  <div class="controls">
+    <div class="ctrl-group"><span class="ctrl-label">Baryons</span><input type="range" id="slB" min="1" max="14" value="8" step="1"><span class="ctrl-val" id="valB">8</span></div>
+    <div class="ctrl-group"><span class="ctrl-label">Mesons</span><input type="range" id="slM" min="0" max="10" value="3" step="1"><span class="ctrl-val" id="valM">3</span></div>
+    <div class="ctrl-group"><span class="ctrl-label">Speed</span><input type="range" id="slS" min="1" max="10" value="3" step="1"><span class="ctrl-val" id="valS">3</span></div>
+    <div class="ctrl-group"><span class="ctrl-label">Time</span><input type="range" id="slT" min="1" max="8" value="3" step="1"><span class="ctrl-val" id="valT">×3</span></div>
+    <button id="btnReset">Reset</button>
+  </div>
+  <div class="status" id="statusEl"></div>
+</div>
+
+<script>
+const wrap=document.getElementById('wrap'),cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const slB=document.getElementById('slB'),slM=document.getElementById('slM'),slS=document.getElementById('slS'),slT=document.getElementById('slT');
+const valB=document.getElementById('valB'),valM=document.getElementById('valM'),valS=document.getElementById('valS'),valT=document.getElementById('valT'),statusEl=document.getElementById('statusEl');
+
+// speedScale: 粒子の熱的速度スケール
+// Speed 1→0.05, Speed 5→0.25, Speed 10→0.50（かなり緩め）
+function getSpeedScale(){ return parseInt(slS.value)*0.05; }
+function getTimeScale(){ return parseInt(slT.value); }
+
+let W,H;
+function resize(){
+  W=cv.width=wrap.offsetWidth;
+  H=cv.height=Math.round(W*0.65);
+  cv.style.height=H+'px';
+}
+resize();
+window.addEventListener('resize',resize);
+
+const isDark=()=>window.matchMedia('(prefers-color-scheme:dark)').matches;
+const fg=a=>isDark()?`rgba(255,255,255,${a})`:`rgba(0,0,0,${a})`;
+
+// ---- constants ----
+const R_Q=3.0, R_H=20;
+const M_B=1.0, M_M=0.15;
+// E_RELEASE: メソン質量解放エネルギー
+// v_btb = sqrt(E_RELEASE/M_B) = sqrt(0.8) ≈ 0.89
+// 通常の熱的速度 ~0.35 の約2.5倍 → back-to-backがはっきり見える
+const E_RELEASE=0.8;
+const KE_INELASTIC=0.8, KE_MULTI=2.0;
+const BIND_DIST=R_H*2.6, BIND_TIME=30; // 短縮: γ放出で補う
+const D_POS=R_H*2.8, D_MOM=0.55, PAULI_MAX=4, PAULI_STR=0.055;
+const aV=0.9, aS=0.7;
+const ABSORPTION_RANGE=R_H*5.0;
+
+// ---- helpers ----
+function baryonNum(nq){return nq===3?1:nq===-3?-1:0;}
+function relKE(a,b){const dvx=a.vx-b.vx,dvy=a.vy-b.vy;return 0.5*(dvx*dvx+dvy*dvy);}
+function nPairsFromKE(rke){return Math.min(4,1+Math.floor((rke-KE_INELASTIC)/0.8));}
+function bindingEnergy(n){return n<2?0:Math.max(0.3,aV*n-aS*Math.pow(n,2/3));}
+
+function bbForce(d){
+  const rep=R_H*1.9,eq=R_H*2.8;
+  if(d<rep)return-(0.07*(rep-d)/rep);
+  if(d<190)return 0.017*Math.exp(-(d-eq)*(d-eq)/(2*40*40));
+  return 0;
+}
+function bmForce(d){return d<200?0.019*(1-d/200):0;}
+function mmForce(d){return d<120?-0.004*(1-d/120):0;}
+function bBbarForce(d){return d<280?0.045*(1-d/280):0;} // 引力強め・範囲広め
+
+function pauliCell(h){
+  return{px:Math.round(h.x/D_POS),py:Math.round(h.y/D_POS),
+         mx:Math.round(h.vx/D_MOM),my:Math.round(h.vy/D_MOM)};
+}
+function applyPauli(baryons){
+  const cells=new Map();
+  baryons.forEach(h=>{
+    const c=pauliCell(h),k=`${c.px},${c.py},${c.mx},${c.my}`;
+    if(!cells.has(k))cells.set(k,[]);
+    cells.get(k).push(h);
+  });
+  cells.forEach(members=>{
+    if(members.length<=PAULI_MAX)return;
+    for(let i=0;i<members.length;i++)for(let j=i+1;j<members.length;j++){
+      const a=members[i],b=members[j];
+      const dvx=a.vx-b.vx,dvy=a.vy-b.vy,dp=Math.sqrt(dvx*dvx+dvy*dvy)+0.001;
+      if(dp<D_MOM*2){
+        const kick=PAULI_STR*(1-dp/(D_MOM*2)),nx=dvy/dp,ny=-dvx/dp;
+        a.vx+=nx*kick;a.vy+=ny*kick;b.vx-=nx*kick;b.vy-=ny*kick;
+      }
+    }
+  });
+}
+
+let idC=0;function uid(){return++idC;}
+
+// ============================================================
+//  Hadron class（自由粒子）
+// ============================================================
+class Hadron{
+  constructor(x,y,nq){
+    this.id=uid();this.nq=nq;
+    this.x=x;this.y=y;
+    // 初期速度をSpeedスケールに連動（新生成粒子も同じスケール）
+    const ss=Math.max(0.1, getSpeedScale());
+    this.vx=(Math.random()-0.5)*ss*1.4;
+    this.vy=(Math.random()-0.5)*ss*1.4;
+    this.quarks=Array.from({length:Math.abs(nq)},(_,i)=>{
+      const a=(i/Math.abs(nq))*Math.PI*2+Math.random()*0.4;
+      return{lx:Math.cos(a)*8,ly:Math.sin(a)*8,
+             vlx:(Math.random()-0.5)*0.3,vly:(Math.random()-0.5)*0.3};
+    });
+    this.pauliKick=0;this.bond=null;this.attract=null;
+    this.nearTime=new Map();
+    this.btbFlash=0;
+    this.escaped=false; // 脱出πフラグ: trueなら反応せず画面外へ飛び去る
+  }
+
+  updateQuarks(){
+    const eq=R_H*0.36;
+    this.quarks.forEach(q=>{
+      const dist=Math.sqrt(q.lx*q.lx+q.ly*q.ly)||0.1;
+      const f=(dist-eq)*0.018;
+      q.vlx-=(q.lx/dist)*f;q.vly-=(q.ly/dist)*f;
+      this.quarks.forEach(o=>{
+        if(o===q)return;
+        const dx=q.lx-o.lx,dy=q.ly-o.ly,d=Math.sqrt(dx*dx+dy*dy)+0.1;
+        if(d<15){q.vlx+=dx/d*0.06;q.vly+=dy/d*0.06;}
+      });
+      q.vlx*=0.97;q.vly*=0.97;q.lx+=q.vlx;q.ly+=q.vly;
+    });
+  }
+
+  move(){
+    this.x+=this.vx;this.y+=this.vy;
+    if(this.escaped){
+      // 脱出π: 壁反射なし、画面外に出たらdead
+      if(this.x<-R_H*2||this.x>W+R_H*2||this.y<-R_H*2||this.y>H+R_H*2){
+        this.dead=true;
+      }
+      return; // 以降の処理スキップ
+    }
+    const m=R_H+8;
+    if(this.x<m){this.x=m;this.vx=Math.abs(this.vx);}
+    if(this.x>W-m){this.x=W-m;this.vx=-Math.abs(this.vx);}
+    if(this.y<m){this.y=m;this.vy=Math.abs(this.vy);}
+    if(this.y>H-m){this.y=H-m;this.vy=-Math.abs(this.vy);}
+    this.vx*=0.999;this.vy*=0.999;
+    if(this.pauliKick>0)this.pauliKick-=0.05;
+    if(this.btbFlash>0)this.btbFlash-=0.035;
+    this.updateQuarks();
+  }
+
+  draw(alpha){
+    const isAnti=this.nq<0;
+    const pk=Math.max(0,this.pauliKick);
+    const btb=Math.max(0,this.btbFlash);
+
+    // back-to-back フラッシュ: 外側に広がる二重リング
+    if(btb>0.05){
+      [btb*22,btb*11].forEach((r,i)=>{
+        ctx.beginPath();ctx.arc(this.x,this.y,R_H+r,0,Math.PI*2);
+        ctx.strokeStyle=fg(btb*(i===0?0.38:0.18));
+        ctx.lineWidth=i===0?1.2:0.7;ctx.stroke();
+      });
+    }
+    if(pk>0.1&&Math.abs(this.nq)===3){
+      ctx.beginPath();ctx.arc(this.x,this.y,R_H+pk*4,0,Math.PI*2);
+      ctx.strokeStyle=fg(pk*0.28);ctx.lineWidth=0.8;ctx.stroke();
+    }
+
+    ctx.beginPath();ctx.arc(this.x,this.y,R_H,0,Math.PI*2);
+    if(isAnti)ctx.setLineDash([3,3]);
+    ctx.strokeStyle=fg(alpha*(isAnti?0.20:0.10));
+    ctx.lineWidth=isAnti?1.0:0.7;ctx.stroke();ctx.setLineDash([]);
+
+    for(let i=0;i<this.quarks.length;i++){
+      const qi=this.quarks[i],qj=this.quarks[(i+1)%this.quarks.length];
+      ctx.beginPath();ctx.moveTo(this.x+qi.lx,this.y+qi.ly);
+      ctx.lineTo(this.x+qj.lx,this.y+qj.ly);
+      ctx.strokeStyle=fg(alpha*0.16);ctx.lineWidth=0.6;ctx.stroke();
+    }
+    if(Math.abs(this.nq)===3){
+      const cx2=this.quarks.reduce((s,q)=>s+q.lx,0)/3;
+      const cy2=this.quarks.reduce((s,q)=>s+q.ly,0)/3;
+      this.quarks.forEach(q=>{
+        ctx.beginPath();ctx.moveTo(this.x+cx2,this.y+cy2);
+        ctx.lineTo(this.x+q.lx,this.y+q.ly);
+        ctx.strokeStyle=fg(alpha*0.11);ctx.lineWidth=0.5;ctx.stroke();
+      });
+    }
+    this.quarks.forEach((q,i)=>{
+      ctx.beginPath();ctx.arc(this.x+q.lx,this.y+q.ly,R_Q,0,Math.PI*2);
+      if(isAnti){ctx.strokeStyle=fg(alpha*0.78);ctx.lineWidth=1.0;ctx.stroke();}
+      else if(Math.abs(this.nq)===3){ctx.fillStyle=fg(alpha*0.86);ctx.fill();}
+      else{
+        if(i===0){ctx.fillStyle=fg(alpha*0.86);ctx.fill();}
+        else{ctx.strokeStyle=fg(alpha*0.76);ctx.lineWidth=0.9;ctx.stroke();}
+      }
+    });
+
+    const label=isAnti?(Math.abs(this.nq)===3?'B̄':'M̄'):(this.nq===3?'B':'M');
+    ctx.fillStyle=fg(alpha*0.20);ctx.font='10px sans-serif';ctx.textAlign='center';
+    ctx.fillText(label,this.x,this.y+R_H+11);
+  }
+}
+
+// ============================================================
+//  Nucleus class（束縛状態）
+// ============================================================
+class Nucleus{
+  constructor(members){
+    this.id=uid();
+    this.x=members.reduce((s,h)=>s+h.x,0)/members.length;
+    this.y=members.reduce((s,h)=>s+h.y,0)/members.length;
+    this.vx=members.reduce((s,h)=>s+h.vx,0)/members.length;
+    this.vy=members.reduce((s,h)=>s+h.vy,0)/members.length;
+    this.members=members.map(h=>({
+      nq:h.nq,
+      rx:h.x-this.x, ry:h.y-this.y,
+      rvx:h.vx-this.vx, rvy:h.vy-this.vy,
+      quarks:h.quarks, id:h.id,
+    }));
+    this.nBaryons=members.filter(h=>Math.abs(h.nq)===3).length;
+    this.nMesons=members.filter(h=>Math.abs(h.nq)===2).length;
+    this.bindE=bindingEnergy(this.nBaryons);
+    this.radius=R_H*(0.8+0.55*Math.pow(this.nBaryons,1/3));
+    this.excitation=0;
+  }
+
+  updateInternal(){
+    const N=this.members.length;
+    const ss=getSpeedScale();
+
+    this.members.forEach((a,i)=>{
+      // 閉じ込めポテンシャル（harmonic well）
+      const dist=Math.sqrt(a.rx*a.rx+a.ry*a.ry)||0.1;
+      const confineR=this.radius*0.55;
+      const fc=(dist-confineR)*0.012;
+      a.rvx-=(a.rx/dist)*fc;a.rvy-=(a.ry/dist)*fc;
+
+      // メンバー間残留核力
+      this.members.forEach((b,j)=>{
+        if(i>=j)return;
+        const dx=b.rx-a.rx,dy=b.ry-a.ry,d=Math.sqrt(dx*dx+dy*dy)||0.1;
+        if(Math.abs(a.nq)===3&&Math.abs(b.nq)===3){
+          const f=bbForce(d)*0.6;
+          a.rvx+=dx/d*f;a.rvy+=dy/d*f;
+          b.rvx-=dx/d*f;b.rvy-=dy/d*f;
+        }
+        // 内部Pauli
+        const dvx=a.rvx-b.rvx,dvy=a.rvy-b.rvy,dp=Math.sqrt(dvx*dvx+dvy*dvy)+0.001;
+        if(dp<D_MOM*1.5){
+          const kick=PAULI_STR*0.5*(1-dp/(D_MOM*1.5)),nx=dvy/dp,ny=-dvx/dp;
+          a.rvx+=nx*kick;a.rvy+=ny*kick;b.rvx-=nx*kick;b.rvy-=ny*kick;
+        }
+      });
+
+      // Speed由来の熱励起: スピードが高いほど内部運動を揺動
+      // 係数を0.008→0.003に下げてエネルギー注入を抑制
+      const thermalKick=ss*0.003;
+      a.rvx+=(Math.random()-0.5)*thermalKick;
+      a.rvy+=(Math.random()-0.5)*thermalKick;
+
+      a.rvx*=0.995;a.rvy*=0.995;a.rx+=a.rvx;a.ry+=a.rvy;
+
+      // 内部クォーク運動
+      if(a.quarks){
+        const eq=R_H*0.36;
+        a.quarks.forEach(q=>{
+          const d2=Math.sqrt(q.lx*q.lx+q.ly*q.ly)||0.1,f=(d2-eq)*0.018;
+          q.vlx-=(q.lx/d2)*f;q.vly-=(q.ly/d2)*f;
+          a.quarks.forEach(o=>{
+            if(o===q)return;
+            const ddx=q.lx-o.lx,ddy=q.ly-o.ly,dd=Math.sqrt(ddx*ddx+ddy*ddy)+0.1;
+            if(dd<15){q.vlx+=ddx/dd*0.06;q.vly+=ddy/dd*0.06;}
+          });
+          q.vlx*=0.97;q.vly*=0.97;q.lx+=q.vlx;q.ly+=q.vly;
+        });
+      }
+    });
+
+    // 重心ドリフト補正
+    const cmrvx=this.members.reduce((s,m)=>s+m.rvx,0)/N;
+    const cmrvy=this.members.reduce((s,m)=>s+m.rvy,0)/N;
+    this.members.forEach(m=>{m.rvx-=cmrvx;m.rvy-=cmrvy;});
+
+    // ---- 脱出チェック ----
+    // 内部KE合計が E_bind を超え、かつ個々のメンバーが脱出エネルギーを持つなら放出
+    if(this.members.length<2)return;
+    const Ebind=this.bindE;
+    let internalKE=0;
+    this.members.forEach(m=>internalKE+=0.5*(m.rvx*m.rvx+m.rvy*m.rvy));
+    if(internalKE<=Ebind)return;
+
+    // 最大内部KEのメンバーを1つ脱出させる
+    let maxKE=0,escapeIdx=-1;
+    this.members.forEach((m,i)=>{
+      const ke=0.5*(m.rvx*m.rvx+m.rvy*m.rvy);
+      if(ke>Ebind/this.members.length&&ke>maxKE){maxKE=ke;escapeIdx=i;}
+    });
+    if(escapeIdx<0)return;
+
+    const em=this.members[escapeIdx];
+    const escaped=new Hadron(this.x+em.rx,this.y+em.ry,em.nq);
+    escaped.vx=this.vx+em.rvx;
+    escaped.vy=this.vy+em.rvy;
+    escaped.quarks=em.quarks;
+    freeHadrons.push(escaped);
+    this.members.splice(escapeIdx,1);
+
+    // 核パラメータ更新
+    this.nBaryons=this.members.filter(m=>Math.abs(m.nq)===3).length;
+    this.nMesons=this.members.filter(m=>Math.abs(m.nq)===2).length;
+    this.bindE=bindingEnergy(this.nBaryons);
+    this.radius=R_H*(0.8+0.55*Math.pow(Math.max(1,this.nBaryons),1/3));
+    this.excitation=0.6;
+    addSparks(this.x,this.y,6,false);
+    setStatus(`nucleon escape! KE_int=${internalKE.toFixed(2)} > E_bind=${Ebind.toFixed(2)}`);
+  }
+
+  move(){
+    this.x+=this.vx;this.y+=this.vy;
+    const m=this.radius+10;
+    if(this.x<m){this.x=m;this.vx=Math.abs(this.vx);}
+    if(this.x>W-m){this.x=W-m;this.vx=-Math.abs(this.vx);}
+    if(this.y<m){this.y=m;this.vy=Math.abs(this.vy);}
+    if(this.y>H-m){this.y=H-m;this.vy=-Math.abs(this.vy);}
+    this.vx*=0.999;this.vy*=0.999;
+    if(this.excitation>0)this.excitation-=0.01;
+    this.updateInternal();
+  }
+
+  dissolve(){
+    return this.members.map(m=>{
+      const h=new Hadron(this.x+m.rx,this.y+m.ry,m.nq);
+      h.vx=this.vx+m.rvx;h.vy=this.vy+m.rvy;
+      h.quarks=m.quarks;return h;
+    });
+  }
+
+  draw(alpha){
+    const ex=Math.max(0,this.excitation);
+    // 束縛状態の薄い外枠
+    ctx.beginPath();ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);
+    ctx.strokeStyle=fg(0.18+ex*0.15);ctx.lineWidth=0.8;ctx.stroke();
+
+    // 内部メンバー描画（重心+相対座標）
+    this.members.forEach(m=>{
+      const wx=this.x+m.rx,wy=this.y+m.ry,isAnti=m.nq<0;
+      ctx.beginPath();ctx.arc(wx,wy,R_H,0,Math.PI*2);
+      if(isAnti)ctx.setLineDash([3,3]);
+      ctx.strokeStyle=fg(alpha*(isAnti?0.18:0.09));
+      ctx.lineWidth=0.6;ctx.stroke();ctx.setLineDash([]);
+
+      if(m.quarks){
+        for(let i=0;i<m.quarks.length;i++){
+          const qi=m.quarks[i],qj=m.quarks[(i+1)%m.quarks.length];
+          ctx.beginPath();ctx.moveTo(wx+qi.lx,wy+qi.ly);ctx.lineTo(wx+qj.lx,wy+qj.ly);
+          ctx.strokeStyle=fg(alpha*0.14);ctx.lineWidth=0.5;ctx.stroke();
+        }
+        if(Math.abs(m.nq)===3){
+          const cx2=m.quarks.reduce((s,q)=>s+q.lx,0)/3;
+          const cy2=m.quarks.reduce((s,q)=>s+q.ly,0)/3;
+          m.quarks.forEach(q=>{
+            ctx.beginPath();ctx.moveTo(wx+cx2,wy+cy2);ctx.lineTo(wx+q.lx,wy+q.ly);
+            ctx.strokeStyle=fg(alpha*0.09);ctx.lineWidth=0.4;ctx.stroke();
+          });
+        }
+        m.quarks.forEach((q,i)=>{
+          ctx.beginPath();ctx.arc(wx+q.lx,wy+q.ly,R_Q,0,Math.PI*2);
+          if(isAnti){ctx.strokeStyle=fg(alpha*0.72);ctx.lineWidth=0.9;ctx.stroke();}
+          else if(Math.abs(m.nq)===3){ctx.fillStyle=fg(alpha*0.82);ctx.fill();}
+          else{
+            if(i===0){ctx.fillStyle=fg(alpha*0.82);ctx.fill();}
+            else{ctx.strokeStyle=fg(alpha*0.70);ctx.lineWidth=0.8;ctx.stroke();}
+          }
+        });
+      }
+    });
+
+    // bound(B=x,M=y) ラベル
+    ctx.fillStyle=fg(0.30);ctx.font='10px sans-serif';ctx.textAlign='center';
+    ctx.fillText(`bound(B=${this.nBaryons},M=${this.nMesons})`,this.x,this.y-this.radius-5);
+  }
+}
+
+// ============================================================
+//  メソン吸収: CM系でback-to-back
+// ============================================================
+function absorptionBTB(b1,b2,m){
+  // 1. 系全体の重心速度（運動量保存）
+  const Mtot=M_B+M_B+M_M;
+  const cmvx=(M_B*b1.vx+M_B*b2.vx+M_M*m.vx)/Mtot;
+  const cmvy=(M_B*b1.vy+M_B*b2.vy+M_M*m.vy)/Mtot;
+
+  // 2. CM系に変換したバリオンのKE（入射エネルギー）
+  const b1cmvx=b1.vx-cmvx,b1cmvy=b1.vy-cmvy;
+  const b2cmvx=b2.vx-cmvx,b2cmvy=b2.vy-cmvy;
+  const keIn=0.5*M_B*(b1cmvx*b1cmvx+b1cmvy*b1cmvy)
+            +0.5*M_B*(b2cmvx*b2cmvx+b2cmvy*b2cmvy);
+
+  // 3. 全解放エネルギー = メソン質量エネルギー + CM系入射KE
+  const Etot=E_RELEASE+keIn;
+  // 各バリオン: CM系で大きさ v_btb = sqrt(Etot/M_B) で逆向きに飛ぶ
+  const v_btb=Math.sqrt(Etot/M_B);
+
+  // 4. back-to-back方向（元の相対運動方向に小さな散乱角を加える）
+  const relAngle=Math.atan2(b1.vy-b2.vy,b1.vx-b2.vx);
+  const scatter=(Math.random()-0.5)*Math.PI*0.4; // ±36°
+  const angle=relAngle+scatter;
+  const nx=Math.cos(angle),ny=Math.sin(angle);
+
+  // 5. lab系速度に変換
+  b1.vx=cmvx+nx*v_btb;b1.vy=cmvy+ny*v_btb;
+  b2.vx=cmvx-nx*v_btb;b2.vy=cmvy-ny*v_btb;
+
+  // 6. BTBフラッシュ演出
+  b1.btbFlash=1.0;b2.btbFlash=1.0;
+
+  return{v_btb,cmvx,cmvy};
+}
+
+// ============================================================
+//  ユーティリティ
+// ============================================================
+function ensureBaryonNumber(newH,bnTarget){
+  let bn=newH.reduce((s,h)=>s+baryonNum(h.nq),0);
+  while(bn<bnTarget){newH.push(new Hadron(W/2+(-30+Math.random()*60),H/2+(-30+Math.random()*60),3));bn++;}
+  while(bn>bnTarget){newH.push(new Hadron(W/2+(-30+Math.random()*60),H/2+(-30+Math.random()*60),-3));bn--;}
+}
+
+function formHadrons(mx,my,nQ,nQbar,cmvx,cmvy){
+  const newH=[];let q=nQ,qb=nQbar;
+  // バリオン（クォーク3個ずつ）
+  while(q>=3){const a=Math.random()*Math.PI*2,r=18+Math.random()*28;newH.push(new Hadron(mx+Math.cos(a)*r,my+Math.sin(a)*r,3));q-=3;}
+  // 反バリオン（反クォーク3個ずつ）
+  while(qb>=3){const a=Math.random()*Math.PI*2,r=18+Math.random()*28;newH.push(new Hadron(mx+Math.cos(a)*r,my+Math.sin(a)*r,-3));qb-=3;}
+  // 余りのq/q̄をペアにしてメソンに（余り1個はもう一方から借りてペアに）
+  // q=0,qb=0: なし  q=1,qb=1: 1M  q=2,qb=0: qを1つ捨てて処理→ここが消失の原因
+  // 修正: q+qb が奇数のときは1つ余るが、それはメソン半分→1Mとして処理
+  const pairs=Math.min(q,qb);
+  for(let i=0;i<pairs;i++){const a=Math.random()*Math.PI*2,r=14+Math.random()*32;newH.push(new Hadron(mx+Math.cos(a)*r,my+Math.sin(a)*r,2));}
+  // 同種余り（q余り or qb余り）は消えてしまうので、
+  // 対消滅/対生成で帳尻を合わせる代わりにメソンを1つ追加で補う
+  if(q!==qb){const a=Math.random()*Math.PI*2,r=14+Math.random()*32;newH.push(new Hadron(mx+Math.cos(a)*r,my+Math.sin(a)*r,2));}
+  const spd=Math.max(0.4,Math.sqrt(cmvx*cmvx+cmvy*cmvy)*0.7/Math.max(1,newH.length));
+  newH.forEach(h=>{const a=Math.atan2(h.y-my,h.x-mx);h.vx=cmvx*0.3+Math.cos(a)*spd;h.vy=cmvy*0.3+Math.sin(a)*spd;});
+  return newH;
+}
+
+function drawLine(ha,hb,dash,a,w){
+  ctx.save();ctx.setLineDash(dash);ctx.beginPath();
+  ctx.moveTo(ha.x,ha.y);ctx.lineTo(hb.x,hb.y);
+  ctx.strokeStyle=fg(a);ctx.lineWidth=w;ctx.stroke();
+  ctx.setLineDash([]);ctx.restore();
+}
+
+// ============================================================
+//  State
+// ============================================================
+let freeHadrons=[],nuclei=[],sparks=[],gammas=[];
+let frame=0,interactCooldown=0,absorptionCooldown=0;
+let statusText='',statusTimer=0,pauliEventTimer=0;
+let totalBaryonInit=0;
+
+function addSparks(x,y,n,big){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2,spd=(big?1.2:0.5)+Math.random()*(big?3.0:1.8);
+    sparks.push({x,y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,life:1,r:big?1.8+Math.random()*2.5:0.8+Math.random()*1.2});
+  }
+}
+
+// ============================================================
+//  γ線放出
+// ============================================================
+// γ線オブジェクト:
+//   ox,oy: 放射点  angle: 進行方向  dist: 進んだ距離
+//   speed: 移動速度  wavelength, amplitude: 波線パラメータ
+//   life: 1→0（0で消滅）  energy: 余剰エネルギー（振幅に影響）
+//
+// γ放出はエネルギーを持ち去る → 放出源の速度を減衰させる
+// 反跳効果: γの運動量 p_γ ∝ E_γ/c → 放出源に逆向きの反跳
+// スケール調整: E_γ_effective を速度変化に変換
+function emitGammas(x,y,nGammas,excessEnergy,sourceMembers,sourceCMVel){
+  for(let i=0;i<nGammas;i++){
+    const angle=Math.random()*Math.PI*2;
+    const amp=2.5+Math.min(excessEnergy*2.0,4.0);
+    const wl=8+Math.random()*4;
+    gammas.push({
+      ox:x, oy:y,
+      angle,
+      dist:0,
+      speed:6.0+Math.random()*2.0,
+      wavelength:wl,
+      amplitude:amp,
+      life:1.0,
+      decay:0.018+Math.random()*0.010,
+      energy:excessEnergy,
+    });
+
+    // γ1本あたりのエネルギー（均等分配）
+    const ePerGamma=excessEnergy/nGammas;
+    // 放出源の内部速度を減衰（エネルギーをγに渡す）
+    // 減衰率: sqrt(1 - ePerGamma/KE_internal) を近似
+    // → 内部速度を factor倍に縮小
+    const factor=Math.max(0.3, 1.0-ePerGamma*0.35);
+    if(sourceMembers){
+      sourceMembers.forEach(m=>{
+        m.rvx*=factor;m.rvy*=factor;
+      });
+    }
+    // 重心速度にも反跳（γの運動量の反作用）
+    if(sourceCMVel){
+      const recoil=ePerGamma*0.06;
+      sourceCMVel.vx-=Math.cos(angle)*recoil;
+      sourceCMVel.vy-=Math.sin(angle)*recoil;
+    }
+  }
+}
+function randPos(){return[R_H+20+Math.random()*(W-R_H*2-40),R_H+20+Math.random()*(H-R_H*2-40)];}
+function setStatus(t){statusText=t;statusTimer=320;}
+
+// ============================================================
+//  π放出ヘルパー（脱出判定付き）
+// ============================================================
+// vPI >= V_PI_ESCAPE → 高エネルギーπ：クラスター外縁の遠方に生成（脱出確定）
+// vPI <  V_PI_ESCAPE → 低エネルギーπ：クラスター内側に生成（再吸収候補）
+const V_PI_ESCAPE=0.6;
+
+function emitPion(cx,cy,angle,vPI,cmVel,members,nMembers){
+  const escaped=vPI>=V_PI_ESCAPE;
+  // 脱出πはクラスター外縁より遠く（核半径+余裕）に生成
+  // 内部πはクラスター内側に生成
+  const clusterR=R_H*(0.8+0.55*Math.pow(Math.max(1,nMembers),1/3));
+  const spawnR=escaped ? clusterR+R_H*1.5 : R_H*1.2;
+  const pi=new Hadron(
+    cx+Math.cos(angle)*spawnR,
+    cy+Math.sin(angle)*spawnR,
+    2
+  );
+  pi.vx=cmVel.vx+Math.cos(angle)*vPI;
+  pi.vy=cmVel.vy+Math.sin(angle)*vPI;
+  pi.escaped=escaped; // 脱出πは反応しない
+  // 反跳（運動量保存）
+  const recoil=M_M*vPI/Math.max(nMembers,1);
+  members.forEach(h=>{h.vx-=Math.cos(angle)*recoil; h.vy-=Math.sin(angle)*recoil;});
+  cmVel.vx-=Math.cos(angle)*recoil;
+  cmVel.vy-=Math.sin(angle)*recoil;
+  freeHadrons.push(pi);
+  return escaped;
+}
+
+function init(){
+  freeHadrons=[];nuclei=[];sparks=[];gammas=[];
+  const nb=parseInt(slB.value),nm=parseInt(slM.value);
+  const ss=Math.max(0.3,getSpeedScale()); // 最低限の速度を確保
+  for(let i=0;i<nb;i++){
+    const[x,y]=randPos();
+    const h=new Hadron(x,y,3);
+    h.vx=(Math.random()-0.5)*ss*1.4;
+    h.vy=(Math.random()-0.5)*ss*1.4;
+    freeHadrons.push(h);
+  }
+  for(let i=0;i<nm;i++){
+    const[x,y]=randPos();
+    const h=new Hadron(x,y,2);
+    h.vx=(Math.random()-0.5)*ss*1.4;
+    h.vy=(Math.random()-0.5)*ss*1.4;
+    freeHadrons.push(h);
+  }
+  totalBaryonInit=nb;
+}
+init();
+
+// ============================================================
+//  束縛状態形成チェック（γ・π放出版）
+// ============================================================
+// πの有効質量エネルギー（スケール調整済み）
+const M_PI_EFF=0.6;
+
+function checkBinding(){
+  const baryons=freeHadrons.filter(h=>Math.abs(h.nq)===3);
+  for(let i=0;i<baryons.length;i++)for(let j=i+1;j<baryons.length;j++){
+    const a=baryons[i],b=baryons[j];
+    const dx=a.x-b.x,dy=a.y-b.y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<BIND_DIST){
+      a.nearTime.set(b.id,(a.nearTime.get(b.id)||0)+1);
+      b.nearTime.set(a.id,(b.nearTime.get(a.id)||0)+1);
+    } else {
+      a.nearTime.set(b.id,0);b.nearTime.set(a.id,0);
+    }
+  }
+  const co=new Map();baryons.forEach(h=>co.set(h.id,h.id));
+  function find(id){let r=id;while(co.get(r)!==r)r=co.get(r);return r;}
+  function union(a,b){co.set(find(a),find(b));}
+  for(let i=0;i<baryons.length;i++)for(let j=i+1;j<baryons.length;j++){
+    const a=baryons[i],b=baryons[j];
+    if((a.nearTime.get(b.id)||0)>=BIND_TIME)union(a.id,b.id);
+  }
+  const clusters=new Map();
+  baryons.forEach(h=>{const r=find(h.id);if(!clusters.has(r))clusters.set(r,[]);clusters.get(r).push(h);});
+
+  clusters.forEach(members=>{
+    if(members.length<2)return;
+
+    // 内部KE計算（クラスターの重心系でのKE）
+    let internalKE=0;
+    for(let i=0;i<members.length;i++)for(let j=i+1;j<members.length;j++)internalKE+=relKE(members[i],members[j]);
+    const Ebind=bindingEnergy(members.length);
+
+    // 速すぎる場合は束縛不可
+    if(internalKE>Ebind*6.0)return;
+
+    // 重心位置・速度
+    const cx=members.reduce((s,h)=>s+h.x,0)/members.length;
+    const cy=members.reduce((s,h)=>s+h.y,0)/members.length;
+    const cmvx=members.reduce((s,h)=>s+h.vx,0)/members.length;
+    const cmvy=members.reduce((s,h)=>s+h.vy,0)/members.length;
+
+    const excessEnergy=Math.max(0,internalKE-Ebind*0.5);
+    const emitted=[];
+
+    // CM速度を可変オブジェクトとして持つ（γ反跳で更新できるよう）
+    const cmVel={vx:cmvx,vy:cmvy};
+
+    // ---- エネルギー帯に応じた放出チャネル選択 ----
+    let residualEnergy=excessEnergy;
+
+    // 内部メンバーの相対速度オブジェクト（emitGammasが減衰できるよう）
+    // checkBinding時点ではまだNucleusになっていないので、
+    // membersの速度を直接操作する（CM系相対速度として扱う）
+    const internalVels=members.map(h=>({
+      get rvx(){ return h.vx-cmVel.vx; },
+      set rvx(v){ h.vx=cmVel.vx+v; },
+      get rvy(){ return h.vy-cmVel.vy; },
+      set rvy(v){ h.vy=cmVel.vy+v; },
+    }));
+
+    if(excessEnergy<0.5){
+      const nGammas=excessEnergy<0.2?1:2;
+      emitGammas(cx,cy,nGammas,excessEnergy,internalVels,cmVel);
+      residualEnergy=0;
+      emitted.push(`${nGammas}γ`);
+
+    } else if(excessEnergy<1.5){
+      if(Math.random()<0.5){
+        emitGammas(cx,cy,2,excessEnergy,internalVels,cmVel);
+        residualEnergy=0;
+        emitted.push('2γ');
+      } else if(excessEnergy>M_PI_EFF){
+        const kePI=excessEnergy-M_PI_EFF;
+        const vPI=Math.sqrt(Math.max(0,2*kePI/M_M));
+        const angle=Math.random()*Math.PI*2;
+        const escaped=emitPion(cx,cy,angle,vPI,cmVel,members,members.length);
+        residualEnergy=0;
+        emitted.push(`π${escaped?'↑':'↻'}(v=${vPI.toFixed(2)})`);
+        emitGammas(cx,cy,1,0.1,internalVels,cmVel);
+        emitted.push('γ');
+      } else {
+        emitGammas(cx,cy,2,excessEnergy,internalVels,cmVel);
+        residualEnergy=0;
+        emitted.push('2γ');
+      }
+
+    } else {
+      let E=excessEnergy;
+      let nPI=0;
+      while(E>M_PI_EFF&&nPI<3){
+        const kePI=Math.min(E-M_PI_EFF, 0.8);
+        const vPI=Math.sqrt(Math.max(0,2*kePI/M_M));
+        const angle=Math.random()*Math.PI*2;
+        emitPion(cx,cy,angle,vPI,cmVel,members,members.length);
+        E-=(M_PI_EFF+kePI);
+        nPI++;
+      }
+      if(E>0.1){ emitGammas(cx,cy,1,E,internalVels,cmVel); emitted.push('γ'); }
+      emitted.push(`${nPI}π`);
+      residualEnergy=0;
+    }
+
+    // 内部速度を減衰（放出後のエネルギーを抜く）
+    const targetKE=Ebind*0.4;
+    const scaleFactor=internalKE>0?Math.sqrt(Math.min(targetKE/internalKE,1)):1;
+    members.forEach(h=>{
+      h.vx=cmVel.vx+(h.vx-cmVel.vx)*scaleFactor;
+      h.vy=cmVel.vy+(h.vy-cmVel.vy)*scaleFactor;
+    });
+
+    // 束縛状態を形成
+    const nuc=new Nucleus(members);nuclei.push(nuc);
+    members.forEach(h=>{const idx=freeHadrons.indexOf(h);if(idx>=0)freeHadrons.splice(idx,1);});
+
+    addSparks(cx,cy,4,false);
+    setStatus(`bound(B=${nuc.nBaryons},M=${nuc.nMesons}) + ${emitted.join('+')}  E_excess=${excessEnergy.toFixed(2)}`);
+  });
+}
+
+// ============================================================
+//  核衝突
+// ============================================================
+function nucleusCollisions(){
+  // Nucleus vs free Hadron
+  for(let ni=nuclei.length-1;ni>=0;ni--){
+    const nuc=nuclei[ni];
+    for(let hi=freeHadrons.length-1;hi>=0;hi--){
+      const h=freeHadrons[hi];
+      const dx=h.x-nuc.x,dy=h.y-nuc.y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d>nuc.radius+R_H+5)continue;
+      const rke=0.5*((h.vx-nuc.vx)**2+(h.vy-nuc.vy)**2)*nuc.nBaryons;
+      if(rke<nuc.bindE*0.5){
+        const nx=dx/d,ny=dy/d;
+        const relV=(h.vx-nuc.vx)*nx+(h.vy-nuc.vy)*ny;
+        if(relV<0){
+          const mN=nuc.nBaryons,imp=2*relV/(mN+1);
+          h.vx-=imp*mN*nx;h.vy-=imp*mN*ny;
+          nuc.vx+=imp*nx;nuc.vy+=imp*ny;
+          setStatus('nucleus elastic scatter');
+        }
+      } else if(rke<nuc.bindE*1.8&&Math.abs(h.nq)===3){
+        nuc.members.push({nq:h.nq,rx:(Math.random()-0.5)*nuc.radius*0.4,ry:(Math.random()-0.5)*nuc.radius*0.4,rvx:(h.vx-nuc.vx)*0.3,rvy:(h.vy-nuc.vy)*0.3,quarks:h.quarks,id:h.id});
+        nuc.vx=(nuc.vx*nuc.nBaryons+h.vx)/(nuc.nBaryons+1);
+        nuc.vy=(nuc.vy*nuc.nBaryons+h.vy)/(nuc.nBaryons+1);
+        nuc.nBaryons++;nuc.bindE=bindingEnergy(nuc.nBaryons);
+        nuc.radius=R_H*(0.8+0.55*Math.pow(nuc.nBaryons,1/3));
+        nuc.excitation=0.5;
+        freeHadrons.splice(hi,1);addSparks(nuc.x,nuc.y,8,false);
+        setStatus(`nucleon transfer → bound(B=${nuc.nBaryons},M=${nuc.nMesons})`);break;
+      } else {
+        // 崩壊: 核メンバー全員を解放 + 衝突相手hもそのまま残す
+        const released=nuc.dissolve();
+        released.forEach(r=>{r.vx+=(Math.random()-0.5)*1.0;r.vy+=(Math.random()-0.5)*1.0;});
+        // hはfreeHadronsに残したまま（削除しない）
+        freeHadrons.push(...released);
+        nuclei.splice(ni,1);
+        addSparks(nuc.x,nuc.y,16,true);
+        setStatus(`nucleus breakup! rKE=${rke.toFixed(2)} > E_bind=${nuc.bindE.toFixed(2)}`);break;
+      }
+    }
+  }
+  // Nucleus vs Nucleus
+  for(let i=nuclei.length-1;i>=0;i--){
+    for(let j=i-1;j>=0;j--){
+      const na=nuclei[i],nb=nuclei[j];
+      const dx=nb.x-na.x,dy=nb.y-na.y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d>na.radius+nb.radius+5)continue;
+      const rke=0.5*((na.vx-nb.vx)**2+(na.vy-nb.vy)**2)*(na.nBaryons+nb.nBaryons)*0.5;
+      if(rke<(na.bindE+nb.bindE)*0.4){
+        const nx=dx/d,ny=dy/d;
+        const relV=(nb.vx-na.vx)*nx+(nb.vy-na.vy)*ny;
+        if(relV<0){
+          const imp=2*relV/(na.nBaryons+nb.nBaryons);
+          na.vx-=imp*nb.nBaryons*nx;na.vy-=imp*nb.nBaryons*ny;
+          nb.vx+=imp*na.nBaryons*nx;nb.vy+=imp*na.nBaryons*ny;
+          setStatus('nucleus+nucleus elastic');
+        }
+      } else {
+        const ra=na.dissolve(),rb=nb.dissolve();
+        freeHadrons.push(...ra,...rb);
+        addSparks((na.x+nb.x)/2,(na.y+nb.y)/2,20,true);
+        nuclei.splice(i,1);nuclei.splice(j,1);
+        setStatus(`nucleus+nucleus breakup rKE=${rke.toFixed(2)}`);
+        i=Math.min(i,nuclei.length-1);break;
+      }
+    }
+  }
+}
+
+// ============================================================
+//  自由ハドロン間の力
+// ============================================================
+function applyForces(){
+  // escaped粒子は力も衝突も受けない
+  const active=freeHadrons.filter(h=>!h.escaped);
+  active.forEach(h=>{h.bond=null;h.attract=null;});
+  for(let i=0;i<active.length;i++){
+    for(let j=i+1;j<active.length;j++){
+      const ha=active[i],hb=active[j];
+      const dx=hb.x-ha.x,dy=hb.y-ha.y,d=Math.sqrt(dx*dx+dy*dy)||0.1;
+      const ux=dx/d,uy=dy/d;
+      const BBbar=(ha.nq===3&&hb.nq===-3)||(ha.nq===-3&&hb.nq===3);
+      const bothB=Math.abs(ha.nq)===3&&Math.abs(hb.nq)===3;
+      let f=0;
+      if(BBbar)f=bBbarForce(d);
+      else if(bothB)f=bbForce(d);
+      else if(Math.abs(ha.nq)===2||Math.abs(hb.nq)===2)
+        f=(Math.abs(ha.nq)===3||Math.abs(hb.nq)===3)?bmForce(d):mmForce(d);
+      ha.vx+=ux*f;ha.vy+=uy*f;hb.vx-=ux*f;hb.vy-=uy*f;
+      if(bothB&&!BBbar&&f>0&&!ha.bond)ha.bond=hb.id;
+      const hasBM=(Math.abs(ha.nq)===2||Math.abs(hb.nq)===2)&&(Math.abs(ha.nq)===3||Math.abs(hb.nq)===3);
+      if(hasBM&&f>0.002){if(!ha.attract)ha.attract=hb.id;if(!hb.attract)hb.attract=ha.id;}
+    }
+  }
+  // 核と自由ハドロン間の力（escaped除外）
+  nuclei.forEach(nuc=>{
+    active.forEach(h=>{
+      const dx=h.x-nuc.x,dy=h.y-nuc.y,d=Math.sqrt(dx*dx+dy*dy)||0.1;
+      if(d>250)return;
+      const ux=dx/d,uy=dy/d;
+      const f=Math.abs(h.nq)===3?bmForce(d)*nuc.nBaryons*0.3:bmForce(d)*nuc.nBaryons*0.15;
+      h.vx+=ux*f;h.vy+=uy*f;
+      nuc.vx-=ux*f/nuc.nBaryons;nuc.vy-=uy*f/nuc.nBaryons;
+    });
+  });
+  const allB=active.filter(h=>Math.abs(h.nq)===3);
+  const prevV=new Map(allB.map(h=>[h.id,{vx:h.vx,vy:h.vy}]));
+  applyPauli(allB);
+  allB.forEach(h=>{
+    const pv=prevV.get(h.id);
+    const kick=Math.sqrt((h.vx-pv.vx)**2+(h.vy-pv.vy)**2);
+    if(kick>0.03){h.pauliKick=Math.min(1,kick*3);pauliEventTimer=60;}
+  });
+}
+
+// ============================================================
+//  メソン吸収（back-to-back版）
+// ============================================================
+function tryAbsorption(){
+  if(absorptionCooldown>0){absorptionCooldown--;return;}
+  if(Math.random()>0.08)return;
+
+  const baryons=freeHadrons.filter(h=>Math.abs(h.nq)===3&&!h.escaped);
+  const mesons=freeHadrons.filter(h=>Math.abs(h.nq)===2&&!h.escaped);
+  const shuffled=[...mesons].sort(()=>Math.random()-0.5);
+
+  for(const m of shuffled){
+    const near=baryons.filter(b=>Math.sqrt((b.x-m.x)**2+(b.y-m.y)**2)<ABSORPTION_RANGE);
+    if(near.length<2)continue;
+    const b1=near[0],b2=near[1];
+
+    // CM系でback-to-back計算
+    const{v_btb}=absorptionBTB(b1,b2,m);
+
+    // メソンを除去
+    freeHadrons.splice(freeHadrons.indexOf(m),1);
+
+    // スパーク（吸収点）
+    const mx=(b1.x+b2.x)/2,my=(b1.y+b2.y)/2;
+    addSparks(mx,my,12,false);
+
+    setStatus(`B+B+M → B+B  (π absorption, v_btb=${v_btb.toFixed(2)}, back-to-back)`);
+    absorptionCooldown=25;
+    return;
+  }
+}
+
+// ============================================================
+//  2体衝突（バリオン数保存を各チャネルで明示的に保証）
+// ============================================================
+function tryCollision(){
+  if(interactCooldown>0){interactCooldown--;return;}
+  let minD=Infinity,ia=-1,ib=-1;
+  for(let i=0;i<freeHadrons.length;i++){
+    if(freeHadrons[i].escaped)continue;
+    for(let j=i+1;j<freeHadrons.length;j++){
+      if(freeHadrons[j].escaped)continue;
+      const dx=freeHadrons[i].x-freeHadrons[j].x,dy=freeHadrons[i].y-freeHadrons[j].y;
+      const d=Math.sqrt(dx*dx+dy*dy);
+      if(d<minD){minD=d;ia=i;ib=j;}
+    }
+  }
+  if(ia<0||minD>R_H*1.9)return;
+
+  const ha=freeHadrons[ia],hb=freeHadrons[ib];
+  const rke=relKE(ha,hb);
+  const mx=(ha.x+hb.x)/2,my=(ha.y+hb.y)/2;
+  const cmvx=(ha.vx+hb.vx)*0.5,cmvy=(ha.vy+hb.vy)*0.5;
+  // 衝突前のバリオン数を記録（これを必ず保存する）
+  const bnBefore=baryonNum(ha.nq)+baryonNum(hb.nq);
+  addSparks(mx,my,rke>KE_MULTI?18:8,rke>KE_MULTI);
+  const newH=[];
+
+  if((ha.nq===3&&hb.nq===-3)||(ha.nq===-3&&hb.nq===3)){
+    // B+B̄消滅 → 50%: γγ（光子ペア）  50%: メソンペア
+    addSparks(mx,my,16,true); // 大きめのスパーク
+    if(Math.random()<0.5){
+      // γγ放出: 2本のγがback-to-backに飛ぶ
+      // エネルギー = 2*M_B + rKE（質量エネルギー＋運動エネルギー）
+      const totalE=2.0+rke;
+      const angle=Math.random()*Math.PI*2;
+      // γ1本あたりのエネルギー = totalE/2
+      const cmVelAnn={vx:cmvx,vy:cmvy};
+      emitGammas(mx,my,1,totalE*0.5,null,cmVelAnn);
+      // 逆方向にもう1本（back-to-back）
+      const g2angle=angle+Math.PI;
+      gammas.push({
+        ox:mx,oy:my,angle:g2angle,dist:0,
+        speed:6.0+Math.random()*2.0,
+        wavelength:8+Math.random()*4,
+        amplitude:2.5+Math.min(totalE*2.0,4.0),
+        life:1.0,decay:0.015,energy:totalE*0.5,
+      });
+      setStatus(`B+B̄→γγ (annihilation, E=${totalE.toFixed(2)})`);
+    } else {
+      // メソンペア放出: qq̄の質量エネルギーがメソンに
+      const nm=Math.max(2,2+Math.floor(rke*1.5));
+      for(let i=0;i<nm;i++){
+        const a=(i/nm)*Math.PI*2;
+        const spd=Math.sqrt(Math.max(0,(2.0+rke)/nm/M_M));
+        const h=new Hadron(mx+Math.cos(a)*24,my+Math.sin(a)*24,2);
+        h.vx=cmvx+Math.cos(a)*spd;h.vy=cmvy+Math.sin(a)*spd;
+        newH.push(h);
+      }
+      setStatus(`B+B̄→${nm}M (annihilation, rKE=${rke.toFixed(2)})`);
+    }
+  } else if(ha.nq===3&&hb.nq===3){
+    if(rke>=KE_MULTI){
+      const np=nPairsFromKE(rke);
+      const formed=formHadrons(mx,my,6+np,np,cmvx,cmvy);
+      newH.push(...formed);
+      const bC=newH.filter(h=>h.nq===3).length,bBarC=newH.filter(h=>h.nq===-3).length,mC=newH.filter(h=>Math.abs(h.nq)===2).length;
+      setStatus(`B+B→${bC}B+${bBarC}B̄+${mC}M (${np}qq̄, rKE=${rke.toFixed(1)})`);
+    } else if(rke>=KE_INELASTIC){
+      [new Hadron(mx-22,my,3),new Hadron(mx+22,my,3),new Hadron(mx,my-20,2),new Hadron(mx,my+20,2)].forEach(h=>{
+        const a=Math.atan2(h.y-my,h.x-mx);h.vx=cmvx+Math.cos(a)*0.7;h.vy=cmvy+Math.sin(a)*0.7;newH.push(h);
+      });
+      setStatus(`B+B→B+B+M+M (inelastic rKE=${rke.toFixed(1)})`);
+    } else {
+      [new Hadron(mx-22,my,3),new Hadron(mx+22,my,3)].forEach(h=>{
+        const a=Math.atan2(h.y-my,h.x-mx);h.vx=cmvx+Math.cos(a)*0.8;h.vy=cmvy+Math.sin(a)*0.8;newH.push(h);
+      });
+      setStatus(`B+B→B+B (elastic rKE=${rke.toFixed(1)})`);
+    }
+  } else if(ha.nq===-3&&hb.nq===-3){
+    [new Hadron(mx-22,my,-3),new Hadron(mx+22,my,-3)].forEach(h=>{
+      const a=Math.atan2(h.y-my,h.x-mx);h.vx=cmvx+Math.cos(a)*0.8;h.vy=cmvy+Math.sin(a)*0.8;newH.push(h);
+    });
+    setStatus('B̄+B̄→B̄+B̄');
+  } else if((Math.abs(ha.nq)===3&&Math.abs(hb.nq)===2)||(Math.abs(ha.nq)===2&&Math.abs(hb.nq)===3)){
+    const bNq=Math.abs(ha.nq)===3?ha.nq:hb.nq;
+    if(rke>=KE_INELASTIC){
+      const nm=1+Math.floor(rke*0.8);
+      const hOut=new Hadron(mx-20,my,bNq);hOut.vx=cmvx-0.5;hOut.vy=cmvy;newH.push(hOut);
+      for(let i=0;i<nm;i++){
+        const a=Math.random()*Math.PI*2;
+        const hm=new Hadron(mx+Math.cos(a)*22,my+Math.sin(a)*22,2);
+        hm.vx=cmvx+Math.cos(a)*0.9;hm.vy=cmvy+Math.sin(a)*0.9;newH.push(hm);
+      }
+      setStatus(`B+M→B+${nm}M (rKE=${rke.toFixed(1)})`);
+    } else {
+      [new Hadron(mx-20,my,bNq),new Hadron(mx+20,my,2)].forEach(h=>{
+        const a=Math.atan2(h.y-my,h.x-mx);h.vx=cmvx+Math.cos(a)*0.8;h.vy=cmvy+Math.sin(a)*0.8;newH.push(h);
+      });
+      setStatus('B+M→B+M');
+    }
+  } else {
+    // M+M → M+M（バリオン数0→0）
+    [new Hadron(mx-18,my,2),new Hadron(mx+18,my,2)].forEach(h=>{
+      const a=Math.atan2(h.y-my,h.x-mx);h.vx=cmvx+Math.cos(a)*0.8;h.vy=cmvy+Math.sin(a)*0.8;newH.push(h);
+    });
+    setStatus('M+M→M+M');
+  }
+
+  // 全チャネル共通: 最終バリオン数補正（安全網）
+  ensureBaryonNumber(newH,bnBefore);
+
+  freeHadrons.splice(Math.max(ia,ib),1);freeHadrons.splice(Math.min(ia,ib),1);
+  freeHadrons.push(...newH);
+  const gs=parseFloat(slS.value)/100;
+  interactCooldown=Math.floor(45/Math.max(gs*3,0.3));
+}
+
+// ============================================================
+//  グローバルバリオン数チェック（毎フレーム監視・強制補正）
+// ============================================================
+function countAllBaryons(){
+  const free=freeHadrons.reduce((s,h)=>s+baryonNum(h.nq),0);
+  const bound=nuclei.reduce((s,n)=>s+n.members.reduce((ss,m)=>ss+baryonNum(m.nq),0),0);
+  return free+bound;
+}
+
+function globalBaryonCheck(){
+  const current=countAllBaryons();
+  const diff=totalBaryonInit-current;
+  if(diff===0)return;
+  // ズレがあれば補正（diff>0なら足りない→追加、diff<0なら多い→反バリオン追加）
+  for(let i=0;i<Math.abs(diff);i++){
+    const[x,y]=randPos();
+    freeHadrons.push(new Hadron(x,y,diff>0?3:-3));
+  }
+  // コンソールにログ（デバッグ用）
+  console.warn(`Baryon number corrected: expected=${totalBaryonInit}, got=${current}, diff=${diff}`);
+}
+
+// ============================================================
+//  Main loop
+// ============================================================
+function loop(){
+  const ss=getSpeedScale();   // 粒子速度スケール（0〜2.0）
+  const ts=getTimeScale();    // 時間スケール（1〜8倍）
+  ctx.clearRect(0,0,W,H);
+
+  // timeScaleの回数だけ物理ステップを進める
+  for(let s=0;s<ts;s++){
+    if(ss>0.01||ts>1){
+      applyForces();
+      freeHadrons.forEach(h=>h.move());
+      // deadフラグの粒子を除去（escaped πが画面外に出た場合）
+      freeHadrons=freeHadrons.filter(h=>!h.dead);
+      nuclei.forEach(n=>n.move());
+      if(frame%Math.max(1,Math.floor(8/Math.max(ts,1)))===0){
+        checkBinding();
+        nucleusCollisions();
+        tryAbsorption();
+        tryCollision();
+      }
+      if(frame%60===0) globalBaryonCheck();
+    }
+    frame++;
+  }
+
+  // 線描画（自由ハドロン間）
+  const drawnB=new Set(),drawnA=new Set();
+  freeHadrons.forEach((ha,i)=>{
+    if(ha.bond){
+      const j=freeHadrons.findIndex(h=>h.id===ha.bond);
+      if(j>=0){
+        const key=[Math.min(i,j),Math.max(i,j)].join('-');
+        if(!drawnB.has(key)){
+          drawnB.add(key);
+          const hb=freeHadrons[j],d=Math.sqrt((hb.x-ha.x)**2+(hb.y-ha.y)**2);
+          const f=bbForce(d);
+          drawLine(ha,hb,f>0?[4,5]:[2,3],Math.min(0.24,Math.abs(f)*9),f>0?0.9:0.6);
+        }
+      }
+    }
+    if(ha.attract){
+      const j=freeHadrons.findIndex(h=>h.id===ha.attract);
+      if(j>=0){
+        const key=[Math.min(i,j),Math.max(i,j)].join('-');
+        if(!drawnA.has(key)){
+          drawnA.add(key);
+          const hb=freeHadrons[j],d=Math.sqrt((hb.x-ha.x)**2+(hb.y-ha.y)**2);
+          drawLine(ha,hb,[3,6],Math.max(0,1-d/200)*0.17,0.7);
+        }
+      }
+    }
+  });
+
+  // スパーク
+  sparks=sparks.filter(s=>s.life>0);
+  sparks.forEach(s=>{
+    ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    ctx.fillStyle=fg(s.life*0.62);ctx.fill();
+    s.x+=s.vx;s.y+=s.vy;s.vx*=0.93;s.vy*=0.93;s.life-=0.020;
+  });
+
+  // γ線（sin波線）
+  gammas=gammas.filter(g=>g.life>0);
+  gammas.forEach(g=>{
+    // 進行方向の単位ベクトル
+    const px=Math.cos(g.angle),py=Math.sin(g.angle);
+    // 垂直方向の単位ベクトル
+    const nx=-py,ny=px;
+
+    // sin波軌跡を描画（放射点から現在の先端まで）
+    ctx.beginPath();
+    const steps=Math.ceil(g.dist/2);
+    for(let s=0;s<=steps;s++){
+      const t=(s/steps)*g.dist;
+      const wave=g.amplitude*Math.sin((t/g.wavelength)*Math.PI*2);
+      const wx=g.ox+px*t+nx*wave;
+      const wy=g.oy+py*t+ny*wave;
+      if(s===0)ctx.moveTo(wx,wy);else ctx.lineTo(wx,wy);
+    }
+    ctx.strokeStyle=fg(g.life*0.55);
+    ctx.lineWidth=0.8;
+    ctx.stroke();
+
+    // 先端に小さな点
+    const tipWave=g.amplitude*Math.sin((g.dist/g.wavelength)*Math.PI*2);
+    const tipX=g.ox+px*g.dist+nx*tipWave;
+    const tipY=g.oy+py*g.dist+ny*tipWave;
+    ctx.beginPath();ctx.arc(tipX,tipY,1.2,0,Math.PI*2);
+    ctx.fillStyle=fg(g.life*0.7);ctx.fill();
+
+    // 更新: 先端を進める
+    g.dist+=g.speed;
+    g.life-=g.decay;
+    // 画面外に出たら即消滅
+    if(tipX<0||tipX>W||tipY<0||tipY>H)g.life=0;
+  });
+
+  // 描画
+  const alpha=ss<0.02?0.4:Math.min(1,ss*0.6+0.35);
+  nuclei.forEach(n=>n.draw(alpha));
+  freeHadrons.forEach(h=>{
+    if(h.escaped){
+      // 脱出π: 薄く描画（クォーク・反クォークも表示）
+      const alpha_esc=0.30;
+      // 外枠
+      ctx.beginPath();ctx.arc(h.x,h.y,R_H,0,Math.PI*2);
+      ctx.setLineDash([3,3]);
+      ctx.strokeStyle=fg(alpha_esc*0.7);ctx.lineWidth=0.7;ctx.stroke();
+      ctx.setLineDash([]);
+      // flux line
+      if(h.quarks&&h.quarks.length>=2){
+        ctx.beginPath();
+        ctx.moveTo(h.x+h.quarks[0].lx,h.y+h.quarks[0].ly);
+        ctx.lineTo(h.x+h.quarks[1].lx,h.y+h.quarks[1].ly);
+        ctx.strokeStyle=fg(alpha_esc*0.5);ctx.lineWidth=0.5;ctx.stroke();
+        // クォーク（塗りつぶし）
+        ctx.beginPath();ctx.arc(h.x+h.quarks[0].lx,h.y+h.quarks[0].ly,R_Q,0,Math.PI*2);
+        ctx.fillStyle=fg(alpha_esc*0.85);ctx.fill();
+        // 反クォーク（輪郭）
+        ctx.beginPath();ctx.arc(h.x+h.quarks[1].lx,h.y+h.quarks[1].ly,R_Q,0,Math.PI*2);
+        ctx.strokeStyle=fg(alpha_esc*0.75);ctx.lineWidth=0.8;ctx.stroke();
+      }
+      // 尾（飛び去る方向の逆に短い線）
+      ctx.beginPath();
+      ctx.moveTo(h.x,h.y);
+      ctx.lineTo(h.x-h.vx*4,h.y-h.vy*4);
+      ctx.strokeStyle=fg(0.10);ctx.lineWidth=0.5;ctx.stroke();
+    } else {
+      h.draw(alpha);
+    }
+  });
+
+  // ステータス
+  const bC=freeHadrons.filter(h=>h.nq===3).length;
+  const bBarC=freeHadrons.filter(h=>h.nq===-3).length;
+  const mC=freeHadrons.filter(h=>Math.abs(h.nq)===2).length;
+  const nucB=nuclei.reduce((s,n)=>s+n.nBaryons,0);
+  const nucM=nuclei.reduce((s,n)=>s+n.nMesons,0);
+  const bNet=countAllBaryons(); // 全系のネットバリオン数
+  const bConserved=bNet===totalBaryonInit;
+  if(statusTimer>0){statusTimer--;if(statusTimer===0)statusText='';}
+  if(pauliEventTimer>0)pauliEventTimer--;
+  statusEl.textContent=
+    `free: B:${bC} B̄:${bBarC} M:${mC}  |  bound: B:${nucB} M:${nucM}  |  B#=${bNet}/${totalBaryonInit} ${bConserved?'✓':'⚠'}`+
+    `  |  nuclei:${nuclei.length}`+
+    (pauliEventTimer>0?'  ⊘Pauli':'')+
+    (statusText?'   '+statusText:'');
+
+  requestAnimationFrame(loop);
+}
+
+slB.addEventListener('input',()=>{valB.textContent=slB.value;});
+slM.addEventListener('input',()=>{valM.textContent=slM.value;});
+slS.addEventListener('input',()=>{valS.textContent=slS.value;});
+slT.addEventListener('input',()=>{valT.textContent=`×${slT.value}`;});
+document.getElementById('btnReset').addEventListener('click',()=>{init();sparks=[];gammas=[];statusText='';});
+loop();
+</script>
+</body>
+</html>
