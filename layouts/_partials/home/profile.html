@@ -1,0 +1,98 @@
+{{- $ja := eq .Language.Lang "ja" -}}
+<div class="home-page">
+  <section class="home-hero" aria-labelledby="hero-title">
+    <div class="home-hero__copy">
+      <p class="eyebrow">{{ if $ja }}ストレンジネス核物理{{ else }}Strangeness nuclear physics{{ end }}</p>
+      <h1 id="hero-title">{{ .Site.Language.Params.Author.name }}</h1>
+      <p class="home-hero__role">{{ .Site.Language.Params.Author.headline }}</p>
+      <p class="home-hero__affiliation">{{ .Site.Language.Params.Author.bio }}</p>
+      <p class="home-hero__intro">
+        {{ if $ja }}
+          日本原子力研究開発機構（JAEA）先端基礎研究センターで、J-PARCとRHICにおけるハドロン・原子核物理の実験研究を行っています。
+        {{ else }}
+          At the JAEA Advanced Science Research Center, I study experimental hadron and nuclear physics at J-PARC and RHIC.
+        {{ end }}
+      </p>
+      <div class="hero-actions" aria-label="{{ if $ja }}主要ページ{{ else }}Featured pages{{ end }}">
+        <a class="button button--primary" href="{{ "research/" | relLangURL }}">
+          {{ if $ja }}研究を見る{{ else }}View research{{ end }} <span aria-hidden="true">→</span>
+        </a>
+        <a class="button button--secondary" href="{{ "publications/" | relLangURL }}">
+          {{ if $ja }}論文を見る{{ else }}View publications{{ end }}
+        </a>
+        <a class="button button--secondary" href="{{ printf "%s#contact" ("links/" | relLangURL) }}">
+          {{ if $ja }}お問い合わせ{{ else }}Contact{{ end }}
+        </a>
+      </div>
+    </div>
+    <aside class="home-hero__note" aria-label="{{ if $ja }}研究領域{{ else }}Research context{{ end }}">
+      <span class="home-hero__index" aria-hidden="true">01</span>
+      <p>{{ if $ja }}J-PARC E42に加え、RHIC-STARの2粒子相関とJ-PARC E88のφ中間子質量変化にも取り組んでいます。{{ else }}Alongside J-PARC E42, I am working on two-particle correlations at RHIC-STAR and in-medium φ meson measurements in J-PARC E88.{{ end }}</p>
+    </aside>
+  </section>
+
+  <section class="home-section research-overview" aria-labelledby="research-focus-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">02 / {{ if $ja }}主な研究テーマ{{ else }}Research focus{{ end }}</p>
+        <h2 id="research-focus-title">{{ if $ja }}いま取り組んでいる研究。{{ else }}Current research topics.{{ end }}</h2>
+      </div>
+      <p>{{ if $ja }}E42の解析に加え、STARでの2粒子相関と、E88でのφ中間子質量変化を進めています。{{ else }}In addition to the E42 analysis, I am working on two-particle correlations at STAR and φ meson mass modification in E88.{{ end }}</p>
+    </div>
+
+    <div class="research-grid">
+      <article class="research-topic">
+        <p class="research-topic__number" aria-hidden="true">A</p>
+        <h3>{{ if $ja }}反K中間子–原子核相互作用{{ else }}Antikaon–nucleus interaction{{ end }}</h3>
+        <p class="research-topic__program">J-PARC E42 · <sup>12</sup>C(<i>K</i><sup>−</sup>, <i>p</i>)</p>
+        <p>{{ if $ja }}HypTPCによるエクスクルーシブ測定から、光学ポテンシャルの虚部を直接制約する。{{ else }}Exclusive HypTPC measurements used to constrain the imaginary part of the optical potential.{{ end }}</p>
+        <a class="text-link" href="{{ "research/" | relLangURL }}#kbar-nucleus">{{ if $ja }}研究概要へ{{ else }}Read the overview{{ end }} <span aria-hidden="true">↗</span></a>
+      </article>
+      <article class="research-topic">
+        <p class="research-topic__number" aria-hidden="true">B</p>
+        <h3>{{ if $ja }}S&nbsp;=&nbsp;−2 系{{ else }}S&nbsp;=&nbsp;−2 systems{{ end }}</h3>
+        <p class="research-topic__program">J-PARC E42 · H-dibaryon / Ξ</p>
+        <p>{{ if $ja }}同一実験におけるHダイバリオン探索とΞ–原子核相互作用。{{ else }}H-dibaryon search and the Ξ–nucleus interaction in the same experiment.{{ end }}</p>
+        <a class="text-link" href="{{ "research/" | relLangURL }}#s2-systems">{{ if $ja }}研究概要へ{{ else }}Read the overview{{ end }} <span aria-hidden="true">↗</span></a>
+      </article>
+      <article class="research-topic">
+        <p class="research-topic__number" aria-hidden="true">C</p>
+        <h3>{{ if $ja }}2粒子相関{{ else }}Two-particle correlations{{ end }}</h3>
+        <p class="research-topic__program">RHIC–STAR</p>
+        <p>{{ if $ja }}重イオン衝突における2粒子相関測定。{{ else }}Two-particle correlation measurements in heavy-ion collisions.{{ end }}</p>
+        <a class="text-link" href="{{ "research/" | relLangURL }}#star-correlations">{{ if $ja }}研究概要へ{{ else }}Read the overview{{ end }} <span aria-hidden="true">↗</span></a>
+      </article>
+      <article class="research-topic">
+        <p class="research-topic__number" aria-hidden="true">D</p>
+        <h3>{{ if $ja }}φ中間子の質量変化{{ else }}In-medium φ mass{{ end }}</h3>
+        <p class="research-topic__program">J-PARC E88</p>
+        <p>{{ if $ja }}核物質中のφ中間子質量変化の測定。{{ else }}Measurement of φ meson mass modification in nuclear matter.{{ end }}</p>
+        <a class="text-link" href="{{ "research/" | relLangURL }}#e88-phi">{{ if $ja }}研究概要へ{{ else }}Read the overview{{ end }} <span aria-hidden="true">↗</span></a>
+      </article>
+    </div>
+  </section>
+
+  <section class="home-section routes" aria-labelledby="explore-title">
+    <div class="section-heading section-heading--compact">
+      <div>
+        <p class="eyebrow">03 / {{ if $ja }}サイトを読む{{ else }}Explore{{ end }}</p>
+        <h2 id="explore-title">{{ if $ja }}研究活動と成果{{ else }}Work, outputs, and updates{{ end }}</h2>
+      </div>
+    </div>
+
+    <div class="route-grid">
+      <a class="route-card route-card--research" href="{{ "research/" | relLangURL }}">
+        <span class="route-card__index">01</span>
+        <span class="route-card__body"><strong>{{ if $ja }}研究{{ else }}Research{{ end }}</strong><small>{{ if $ja }}研究テーマと実験{{ else }}Questions and experiments{{ end }}</small></span>
+        <span class="route-card__arrow" aria-hidden="true">↗</span>
+      </a>
+      <a class="route-card route-card--publications" href="{{ "publications/" | relLangURL }}">
+        <span class="route-card__index">02</span>
+        <span class="route-card__body"><strong>{{ if $ja }}論文{{ else }}Publications{{ end }}</strong><small>{{ if $ja }}論文と研究成果{{ else }}Papers and results{{ end }}</small></span>
+        <span class="route-card__arrow" aria-hidden="true">↗</span>
+      </a>
+      <a class="route-row" href="{{ "talks/" | relLangURL }}"><span>03</span><strong>{{ if $ja }}発表{{ else }}Talks{{ end }}</strong><small>{{ if $ja }}学会発表・講演{{ else }}Presentations and lectures{{ end }}</small><b aria-hidden="true">→</b></a>
+      <a class="route-row" href="{{ "news/" | relLangURL }}"><span>04</span><strong>{{ if $ja }}ニュース{{ else }}News{{ end }}</strong><small>{{ if $ja }}活動の更新情報{{ else }}Recent updates{{ end }}</small><b aria-hidden="true">→</b></a>
+    </div>
+  </section>
+</div>

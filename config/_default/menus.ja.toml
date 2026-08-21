@@ -21,7 +21,7 @@
   weight = 40
 
 [[main]]
-  name = "資金"
+  name = "研究費"
   pageRef = "grants"
   weight = 50
 
@@ -29,6 +29,17 @@
   name = "ニュース"
   pageRef = "news"
   weight = 60
+
+# Hidden until the simulators are ready to show.
+# [[main]]
+#   name = "ソフトウェア"
+#   pageRef = "software"
+#   weight = 70
+
+[[main]]
+  name = "お問い合わせ"
+  pageRef = "links"
+  weight = 80
 
 # -- Footer Menu --
 

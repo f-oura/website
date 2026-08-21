@@ -1,74 +1,43 @@
 ---
 title: "Collaborators"
 description: "Research collaborators and groups"
+math: true
 ---
 
-## Current Collaborations
+I do not list individual names here beyond publicly listed group roles. For coauthors, see the [publications](/publications/) page.
 
-### J-PARC E42/E88 Collaboration
+## J-PARC E42 Collaboration
 
 {{< article >}}
-**Spokesperson:** Prof. [Name], KEK
+Search for the H-dibaryon and related \(S=-2\) and \(\bar{K}\)-nucleus physics at the K1.8 beamline, using the Superconducting Hyperon Spectrometer (HypTPC).
 
-**Institutions:**
-- KEK (High Energy Accelerator Research Organization)
-- JAEA (Japan Atomic Energy Agency)
-- University of Tokyo
+**Participating institutions include:**
+- Japan Atomic Energy Agency (JAEA)
 - Tohoku University
-- RIKEN
-
-[Collaboration Website →](https://example.com/e42)
+- Korea University
+- High Energy Accelerator Research Organization (KEK)
+- Kyoto University
+- and other collaborating institutes
 {{< /article >}}
 
 ---
 
-### STAR Collaboration
+## Home institutions
 
 {{< article >}}
-**Spokesperson:** Prof. [Name], BNL
+### Research Group for Hadron Nuclear Physics
+**Advanced Science Research Center, JAEA**
 
-**Institutions:** 70+ institutions worldwide
+Group leader: Hirokazu Tamura
 
-The STAR (Solenoidal Tracker at RHIC) collaboration studies the properties of matter at extreme temperatures and densities.
-
-[STAR Website →](https://www.star.bnl.gov/)
-{{< /article >}}
-
----
-
-## Close Collaborators
-
-{{< article >}}
-### Prof. [Collaborator 1]
-**University of Tokyo**
-
-*Research Area:* Hadron physics, QCD
-
-[Website →](https://example.com)
+[Group page](https://asrc.jaea.go.jp/soshiki/gr/hadron/member_e.html)
 {{< /article >}}
 
 {{< article >}}
-### Dr. [Collaborator 2]
-**KEK**
+### Nuclear Physics Group
+**Tohoku University**
 
-*Research Area:* Strangeness nuclear physics
-
-[Website →](https://example.com)
+[Group page](https://lambda.phys.tohoku.ac.jp/)
 {{< /article >}}
 
-{{< article >}}
-### Dr. [Collaborator 3]
-**Brookhaven National Laboratory**
-
-*Research Area:* Heavy-ion collisions, Collective flow
-
-[Website →](https://example.com)
-{{< /article >}}
-
----
-
-## Research Groups
-
-- [Hadron Physics Group, University of Tokyo](https://example.com)
-- [Nuclear Theory Group, JAEA](https://example.com)
-- [STAR Japan Group](https://example.com)
+{{< katex >}}

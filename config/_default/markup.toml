@@ -4,6 +4,16 @@
 [goldmark]
 [goldmark.renderer]
   unsafe = true
+[goldmark.parser]
+[goldmark.parser.attribute]
+  title = true
+  block = true
+[goldmark.extensions]
+[goldmark.extensions.passthrough]
+  enable = true
+[goldmark.extensions.passthrough.delimiters]
+  block = [['\[', '\]'], ['$$', '$$']]
+  inline = [['\(', '\)']]
 
 [highlight]
   noClasses = false

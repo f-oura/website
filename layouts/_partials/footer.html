@@ -1,0 +1,40 @@
+{{- $ja := eq .Language.Lang "ja" -}}
+<footer class="site-footer">
+  <div class="site-footer__lead">
+    <p class="eyebrow">{{ if $ja }}お問い合わせ{{ else }}Contact{{ end }}</p>
+    <p>{{ if $ja }}機関メール、またはフォームからご連絡ください。{{ else }}Write by institutional email, or use the contact form.{{ end }}</p>
+    <a class="text-link" href="{{ printf "%s#contact" ("links/" | relLangURL) }}">{{ if $ja }}お問い合わせへ{{ else }}Go to contact{{ end }} <span aria-hidden="true">→</span></a>
+  </div>
+  <div class="site-footer__links">
+    <div>
+      <h2>{{ if $ja }}主要ページ{{ else }}Research{{ end }}</h2>
+      <a href="{{ "research/" | relLangURL }}">{{ if $ja }}研究{{ else }}Research{{ end }}</a>
+      <a href="{{ "publications/" | relLangURL }}">{{ if $ja }}論文{{ else }}Publications{{ end }}</a>
+      <a href="{{ "talks/" | relLangURL }}">{{ if $ja }}発表{{ else }}Talks{{ end }}</a>
+      <a href="{{ printf "%s#contact" ("links/" | relLangURL) }}">{{ if $ja }}お問い合わせ{{ else }}Contact{{ end }}</a>
+    </div>
+    <div>
+      <h2>{{ if $ja }}補助ページ{{ else }}Elsewhere{{ end }}</h2>
+      {{ range .Site.Menus.footer }}<a href="{{ .URL }}">{{ .Name }}</a>{{ end }}
+      <a href="https://github.com/f-oura" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span><span class="sr-only">{{ if $ja }}（外部サイト）{{ else }} (external site){{ end }}</span></a>
+    </div>
+    <div>
+      <h2>{{ if $ja }}所属{{ else }}Affiliation{{ end }}</h2>
+      <a href="{{ if $ja }}https://www.jaea.go.jp/{{ else }}https://www.jaea.go.jp/english/{{ end }}" target="_blank" rel="noopener noreferrer">JAEA <span aria-hidden="true">↗</span></a>
+      <a href="{{ if $ja }}https://asrc.jaea.go.jp/{{ else }}https://asrc.jaea.go.jp/english/{{ end }}" target="_blank" rel="noopener noreferrer">ASRC <span aria-hidden="true">↗</span></a>
+    </div>
+  </div>
+  <div class="site-footer__base">
+    <div class="site-footer__legal">
+      <p>&copy; {{ now.Format "2006" }} {{ .Site.Language.Params.Author.name }}</p>
+      <p class="site-footer__disclaimer">
+        {{- if $ja -}}
+          本サイトは個人のウェブサイトであり、日本原子力研究開発機構の公式サイトではありません。
+        {{- else -}}
+          This is a personal website and is not an official website of the Japan Atomic Energy Agency (JAEA).
+        {{- end -}}
+      </p>
+    </div>
+    <a href="#main-content">{{ if $ja }}ページ上部へ{{ else }}Back to top{{ end }} ↑</a>
+  </div>
+</footer>

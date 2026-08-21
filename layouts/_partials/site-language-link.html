@@ -1,0 +1,14 @@
+{{- $ja := eq .Language.Lang "ja" -}}
+{{- if .IsTranslated -}}
+  {{- range .Translations -}}
+    <a class="language-link" href="{{ .RelPermalink }}" hreflang="{{ .Language.Lang }}" lang="{{ .Language.Lang }}">
+      <span aria-hidden="true">{{ if $ja }}EN{{ else }}JA{{ end }}</span>
+      <span>{{ if $ja }}English{{ else }}日本語{{ end }}</span>
+    </a>
+  {{- end -}}
+{{- else -}}
+  <a class="language-link" href="{{ if $ja }}/{{ else }}/ja/{{ end }}" hreflang="{{ if $ja }}en{{ else }}ja{{ end }}" lang="{{ if $ja }}en{{ else }}ja{{ end }}">
+    <span aria-hidden="true">{{ if $ja }}EN{{ else }}JA{{ end }}</span>
+    <span>{{ if $ja }}English{{ else }}日本語{{ end }}</span>
+  </a>
+{{- end -}}

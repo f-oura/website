@@ -1,39 +1,20 @@
 ---
 title: "Grants & Funding"
 description: "Research grants and funding"
----
-
-## Current
-
-{{< article >}}
-### JSPS KAKENHI Grant-in-Aid for Early-Career Scientists
-**2025–2028**
-
-*Project:* Study of kaon-nucleus interactions using high-intensity beams at J-PARC
-
-*Amount:* ¥4,500,000
-
-*Role:* Principal Investigator
-{{< /article >}}
-
+math: true
 ---
 
 ## Past
 
 {{< article >}}
-### JSPS Research Fellowship (DC1)
-**2022–2025**
+### JSPS Grant-in-Aid for JSPS Fellows
+**KAKENHI 24KJ0398** — Apr 2024 – Mar 2026
 
-*Project:* Investigation of collective phenomena in heavy-ion collisions
+*Project:* Charge-symmetry breaking in high-resolution \(\gamma\)-ray spectroscopy of hypernuclei
 
-*Amount:* ¥2,800,000 + Research Grant ¥1,500,000
+*Role:* Principal Investigator (JSPS DC2)
 
-*Role:* Fellow
+[KAKEN record](https://kaken.nii.ac.jp/en/grant/KAKENHI-PROJECT-24KJ0398/)
 {{< /article >}}
 
-{{< article >}}
-### University of Tokyo Graduate School Fellowship
-**2020–2022**
-
-*Role:* Fellow
-{{< /article >}}
+{{< katex >}}

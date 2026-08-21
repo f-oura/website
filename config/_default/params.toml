@@ -2,23 +2,22 @@
 # https://jpanther.github.io/congo/docs/configuration/#theme-parameters
 
 colorScheme = "laboratory"
-defaultAppearance = "light"
+defaultAppearance = "dark"
 autoSwitchAppearance = false
 
-description = "Nuclear and Particle Physics Researcher at JAEA"
+description = "Experimental nuclear physicist at JAEA, studying hadron and nuclear physics at J-PARC and RHIC"
 mainSections = ["publications", "research"]
 
 [author]
   name = "Fumiya Oura"
   # image = "img/author.jpg"
-  headline = "Nuclear & Particle Physics Researcher"
+  headline = "Experimental nuclear physicist"
   bio = "JAEA / Advanced Science Research Center"
   links = [
     { github = "https://github.com/f-oura" },
-    { orcid = "https://orcid.org/0000-0000-0000-0000" },
-    { linkedin = "https://linkedin.com/in/fumiya-oura" },
-    { researchmap = "https://researchmap.jp/your-id" },
-    { email = "mailto:oura@example.com" },
+    { orcid = "https://orcid.org/0009-0005-9504-7120" },
+    { researchmap = "https://researchmap.jp/fumiyaoura" },
+    { email = "mailto:ohura.fumiya@jaea.go.jp" },
   ]
 
 [homepage]
@@ -34,8 +33,8 @@ mainSections = ["publications", "research"]
 [footer]
   showCopyright = true
   showThemeAttribution = false
-  showAppearanceSwitcher = true
-  showScrollToTop = true
+  showAppearanceSwitcher = false
+  showScrollToTop = false
 
 [article]
   showDate = true

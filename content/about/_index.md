@@ -1,31 +1,7 @@
 ---
 title: "About"
 description: "Biography and CV"
----
-
-## Education
-
-{{< article >}}
-### Ph.D. in Physics
-**University of Tokyo** — 2022–2025
-
-Thesis: *Study of Kaon-Nucleus Interactions at J-PARC*
-
-Advisor: Prof. [Advisor Name]
-{{< /article >}}
-
-{{< article >}}
-### M.S. in Physics
-**University of Tokyo** — 2020–2022
-
-Thesis: *Collective Flow Analysis in Heavy-Ion Collisions at RHIC*
-{{< /article >}}
-
-{{< article >}}
-### B.S. in Physics
-**University of Tokyo** — 2016–2020
-{{< /article >}}
-
+math: true
 ---
 
 ## Professional Experience
@@ -33,26 +9,45 @@ Thesis: *Collective Flow Analysis in Heavy-Ion Collisions at RHIC*
 {{< article >}}
 ### Researcher
 **Japan Atomic Energy Agency (JAEA)**
-*Advanced Science Research Center*
+*Advanced Science Research Center (ASRC)*
+*Research Group for Hadron Nuclear Physics*
 
-April 2025 – Present
+April 2026 – Present
+{{< /article >}}
 
-- J-PARC E42/E88 experiments on kaon-nucleus interactions
-- RHIC-STAR BES-II collaboration
+{{< article >}}
+### JSPS Research Fellow (DC2)
+**Tohoku University**
+
+April 2024 – March 2026
 {{< /article >}}
 
 ---
 
-## Skills
+## Degrees
 
-- **Experimental Techniques**: Particle detectors, DAQ systems, Beam operation
-- **Analysis**: ROOT, C++, Python, Machine Learning
-- **Simulation**: Geant4, Monte Carlo methods
-- **Languages**: Japanese (native), English (fluent)
+{{< article >}}
+### Ph.D. in Physics
+**Tohoku University** — Apr 2023 – Mar 2026
+
+Thesis: *Investigation of \(\bar{K}\)-Nucleus Interaction through Exclusive Measurements of the \(^{12}\mathrm{C}(K^-,p)\) Reaction*
+{{< /article >}}
+
+{{< article >}}
+### M.S. in Physics
+**Tohoku University** — Apr 2021 – Mar 2023
+{{< /article >}}
+
+{{< article >}}
+### B.S. in Physics
+**Tohoku University** — Apr 2017 – Mar 2021
+{{< /article >}}
 
 ---
 
 ## Awards & Fellowships
 
-- JSPS Research Fellowship (DC1), 2022–2025
-- Best Poster Award, JPS Autumn Meeting 2023
+- JSPS Research Fellowship (DC2), 2024–2026
+- ANPhA 2nd Prize, Strangeness Nuclear Physics School 2022
+
+{{< katex >}}

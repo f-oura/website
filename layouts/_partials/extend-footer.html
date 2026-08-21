@@ -1,0 +1,5 @@
+{{- $script := resources.Get "js/site.js" -}}
+{{- if $script -}}
+  {{- $script = $script | resources.Minify | resources.Fingerprint "sha256" -}}
+  <script defer src="{{ $script.RelPermalink }}" integrity="{{ $script.Data.Integrity }}"></script>
+{{- end -}}

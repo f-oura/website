@@ -1,0 +1,51 @@
+{{- $ja := eq .Language.Lang "ja" -}}
+<div class="hadron-background" aria-hidden="true">
+  <iframe
+    class="hadron-background__frame"
+    data-src="{{ "hadron_bg.html" | relURL }}"
+    title="{{ if $ja }}装飾用ハドロン・シミュレーション{{ else }}Decorative hadron simulation{{ end }}"
+    tabindex="-1"
+    loading="lazy"
+  ></iframe>
+</div>
+
+<div class="hadron-controls" data-hadron-controls>
+  <button
+    class="hadron-controls__toggle"
+    type="button"
+    aria-expanded="false"
+    aria-controls="hadron-control-panel"
+    title="{{ if $ja }}背景シミュレーションを調整{{ else }}Adjust background simulation{{ end }}"
+  >
+    <span class="hadron-controls__mark" aria-hidden="true"></span>
+    <span>{{ if $ja }}シミュレーション{{ else }}Simulation{{ end }}</span>
+  </button>
+  <section class="hadron-panel" id="hadron-control-panel" aria-labelledby="hadron-panel-title" hidden>
+    <div class="hadron-panel__heading">
+      <h2 id="hadron-panel-title">{{ if $ja }}背景シミュレーション{{ else }}Background simulation{{ end }}</h2>
+      <p>{{ if $ja }}装飾表示の粒子数と速度を調整します。{{ else }}Adjust the decorative particle field.{{ end }}</p>
+    </div>
+    <div class="hadron-field">
+      <div class="hadron-field__label">
+        <label for="hadron-baryons">{{ if $ja }}バリオン{{ else }}Baryons{{ end }}</label>
+        <output id="hadron-baryons-value" for="hadron-baryons">7</output>
+      </div>
+      <input type="range" id="hadron-baryons" min="1" max="12" value="7" step="1">
+    </div>
+    <div class="hadron-field">
+      <div class="hadron-field__label">
+        <label for="hadron-mesons">{{ if $ja }}メソン{{ else }}Mesons{{ end }}</label>
+        <output id="hadron-mesons-value" for="hadron-mesons">5</output>
+      </div>
+      <input type="range" id="hadron-mesons" min="0" max="8" value="5" step="1">
+    </div>
+    <div class="hadron-field">
+      <div class="hadron-field__label">
+        <label for="hadron-speed">{{ if $ja }}速度{{ else }}Speed{{ end }}</label>
+        <output id="hadron-speed-value" for="hadron-speed">40%</output>
+      </div>
+      <input type="range" id="hadron-speed" min="0" max="100" value="40" step="5">
+    </div>
+    <button class="hadron-panel__reset" type="button" data-hadron-reset>{{ if $ja }}初期値に戻す{{ else }}Reset controls{{ end }}</button>
+  </section>
+</div>

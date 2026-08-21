@@ -1,0 +1,17 @@
+{{ define "main" }}
+  <div class="page-shell">
+    <header class="page-header">
+      {{ if .Params.showBreadcrumbs | default (.Site.Params.article.showBreadcrumbs | default false) }}
+        <nav class="breadcrumbs" aria-label="Breadcrumb">{{ partial "breadcrumbs.html" . }}</nav>
+      {{ end }}
+      <p class="eyebrow">{{ upper (.Section | default "Article") }}</p>
+      <h1>{{ .Title | emojify }}</h1>
+      {{ with .Description }}<p class="page-header__description">{{ . }}</p>{{ end }}
+    </header>
+    <div class="content-layout">
+      <article class="editorial-prose">
+        {{ .Content | emojify }}
+      </article>
+    </div>
+  </div>
+{{ end }}

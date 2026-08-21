@@ -1,0 +1,87 @@
+{{- $page := . -}}
+{{- $ja := eq .Language.Lang "ja" -}}
+{{- $primary := slice "about" "research" "publications" "talks" "news" "links" -}}
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="site-brand" href="{{ "" | relLangURL }}"{{ if .IsHome }} aria-current="page"{{ end }}>
+      <span class="site-brand__name">{{ .Site.Language.Params.Author.name }}</span>
+      <span class="site-brand__field">{{ if $ja }}原子核実験{{ else }}Experimental nuclear physics{{ end }}</span>
+    </a>
+
+    <nav class="desktop-nav" aria-label="{{ if $ja }}主要ナビゲーション{{ else }}Primary navigation{{ end }}">
+      <ul class="desktop-nav__list">
+        {{ range .Site.Menus.main }}
+          {{ if in $primary .PageRef }}
+            <li><a href="{{ .URL }}"{{ if $page.IsMenuCurrent "main" . }} aria-current="page"{{ end }}>{{ .Name }}</a></li>
+          {{ end }}
+        {{ end }}
+      </ul>
+
+      <details class="more-menu" data-disclosure>
+        <summary aria-expanded="false">
+          {{ if $ja }}その他{{ else }}More{{ end }}
+          <span aria-hidden="true">＋</span>
+        </summary>
+        <div class="more-menu__panel">
+          {{ range .Site.Menus.main }}
+            {{ if not (in $primary .PageRef) }}
+              <a href="{{ .URL }}"{{ if $page.IsMenuCurrent "main" . }} aria-current="page"{{ end }}>{{ .Name }}</a>
+            {{ end }}
+          {{ end }}
+          {{ range .Site.Menus.footer }}
+            <a href="{{ .URL }}"{{ if $page.IsMenuCurrent "footer" . }} aria-current="page"{{ end }}>{{ .Name }}</a>
+          {{ end }}
+        </div>
+      </details>
+    </nav>
+
+    <div class="header-tools header-tools--desktop">
+      {{ partial "site-language-link.html" . }}
+      <button
+        class="icon-button appearance-button"
+        id="appearance-switcher-desktop"
+        type="button"
+        aria-label="{{ if $ja }}配色を切り替える{{ else }}Switch color theme{{ end }}"
+        title="{{ if $ja }}配色を切り替える{{ else }}Switch color theme{{ end }}"
+      >
+        <span class="appearance-button__dark" aria-hidden="true">{{ partial "icon.html" "moon" }}</span>
+        <span class="appearance-button__light" aria-hidden="true">{{ partial "icon.html" "sun" }}</span>
+      </button>
+    </div>
+
+    <details class="mobile-menu" data-mobile-menu>
+      <summary aria-expanded="false" aria-controls="mobile-navigation-panel">
+        <span class="mobile-menu__label">{{ if $ja }}メニュー{{ else }}Menu{{ end }}</span>
+        <span class="mobile-menu__icon" aria-hidden="true"><i></i><i></i></span>
+      </summary>
+      <div class="mobile-menu__panel" id="mobile-navigation-panel">
+        <nav aria-label="{{ if $ja }}モバイルナビゲーション{{ else }}Mobile navigation{{ end }}">
+          <ul class="mobile-menu__primary">
+            {{ range .Site.Menus.main }}
+              <li><a href="{{ .URL }}"{{ if $page.IsMenuCurrent "main" . }} aria-current="page"{{ end }}><span>{{ printf "%02d" (div .Weight 10) }}</span>{{ .Name }}</a></li>
+            {{ end }}
+          </ul>
+          <p class="mobile-menu__secondary-label">{{ if $ja }}補助ページ{{ else }}Additional pages{{ end }}</p>
+          <ul class="mobile-menu__secondary">
+            {{ range .Site.Menus.footer }}
+              <li><a href="{{ .URL }}"{{ if $page.IsMenuCurrent "footer" . }} aria-current="page"{{ end }}>{{ .Name }}</a></li>
+            {{ end }}
+          </ul>
+        </nav>
+        <div class="mobile-menu__tools">
+          {{ partial "site-language-link.html" . }}
+          <button
+            class="theme-text-button"
+            id="appearance-switcher-mobile"
+            type="button"
+            aria-label="{{ if $ja }}配色を切り替える{{ else }}Switch color theme{{ end }}"
+          >
+            <span class="appearance-button__dark" aria-hidden="true">{{ partial "icon.html" "moon" }}</span>
+            <span class="appearance-button__light" aria-hidden="true">{{ partial "icon.html" "sun" }}</span>
+            {{ if $ja }}配色を切替{{ else }}Color theme{{ end }}
+          </button>
+        </div>
+      </div>
+    </details>
+  </div>
+</header>

@@ -1,50 +1,123 @@
 ---
 title: "Talks"
-description: "Conference presentations and invited talks"
+description: "Conference presentations"
+math: true
 ---
 
-## Invited Talks
+Selected talks. Additional presentations are listed on [KAKEN](https://kaken.nii.ac.jp/ja/grant/KAKENHI-PROJECT-24KJ0398/).
+
+## Invited talks
 
 {{< article >}}
-### Kaon-Nucleus Interactions: Recent Results from J-PARC E42
+### Detector and Streaming Readout DAQ Development for Measurement of in-medium Mass Modification and Hadron Femtoscopy in \(p+A\) Collisions at J-PARC
 
-**International Conference on Strangeness in Quark Matter (SQM 2025)**
+**ISMD 2026** (54th International Symposium on Multiparticle Dynamics)
 
-*June 2025, Nagoya, Japan*
+*August 2026, National Central University, Taiwan*
 
-Invited plenary talk on the latest measurements of kaon-nucleus interactions.
+[Conference site](https://indico.cern.ch/event/1593982/)
+{{< /article >}}
+
+{{< article >}}
+### Hadron-nucleus femtoscopy in low-energy \(p+A\) collisions at J-PARC — J-PARC SAΦRE measurements and Prospects for π20/K10 beam lines
+
+**Workshop on New Frontiers in Hadron Physics at J-PARC π20 and K10**
+
+*RCNP, Osaka University*
+
+[Indico](https://indico.rcnp.osaka-u.ac.jp/event/2904/overview)
 {{< /article >}}
 
 ---
 
-## Conference Presentations
+## International conferences
 
 {{< article >}}
-### Collective Flow Measurements at RHIC BES-II Energies
+### Toward \(\phi\) meson in nuclear matter: From \(K\)-nucleus optical potential to \(\phi\)-nucleus interaction
 
-**Quark Matter 2025**
+**International Workshop on Origin of Mass and Matter in the Universe**
 
-*April 2025, Frankfurt, Germany*
+*July 2026, APCTP, Pohang, Korea*
 
-Oral presentation on behalf of the STAR Collaboration.
+[Indico](https://indico.global/event/16936/)
 {{< /article >}}
 
 {{< article >}}
-### Search for Kaonic Nuclear Bound States at J-PARC
+### Exclusive Measurement of the \(^{12}\mathrm{C}(K^-,p)\) Reaction for Probing the \(\bar{K}\)-Nucleus Interaction at J-PARC
 
-**JPS Spring Meeting 2025**
+**MESON 2026** (18th International Workshop on Meson Physics)
 
-*March 2025, Tokyo, Japan*
+*June 2026, Kraków, Poland*
 
-Contributed talk at the Physical Society of Japan meeting.
+[Conference site](https://indico.meson.if.uj.edu.pl/event/6/)
 {{< /article >}}
 
 {{< article >}}
-### Beam Energy Dependence of Directed Flow in Au+Au Collisions
+### Exploring Kaonic Nucleus via \(^{12}\mathrm{C}(K^-,p)\) Reaction at J-PARC
 
-**RHIC & AGS Annual Users' Meeting 2024**
+**HYP2025** (15th International Conference on Hypernuclear and Strange Particle Physics)
 
-*June 2024, Brookhaven, USA*
+*September–October 2025, University of Tokyo, Japan*
 
-Poster presentation.
+[Indico](https://indico2.riken.jp/event/5204/contributions/26672/)
 {{< /article >}}
+
+{{< article >}}
+### Exclusive study of Kaonic nuclear state using \(^{12}\mathrm{C}(K^-,p)\) reaction at J-PARC
+
+**HADRON2025**
+
+*March 2025, Osaka, Japan*
+{{< /article >}}
+
+{{< article >}}
+### Spectroscopic study of Kaonic nuclei using inclusive and exclusive \(^{12}\mathrm{C}(K^-,p)\) reaction at J-PARC
+
+**QNP2024**
+
+*July 2024, Barcelona, Spain*
+{{< /article >}}
+
+{{< article >}}
+### H-dibaryon search experiment and its various byproducts
+
+**NSTAR2024**
+
+*June 2024, York, UK*
+{{< /article >}}
+
+{{< article >}}
+### Development of the triple coincidence method of reaction, gamma-ray, and weak decay in the hypernuclear gamma-ray spectroscopy at J-PARC
+
+**HYP2022** (14th International Conference on Hypernuclear and Strange Particle Physics)
+
+*June–July 2022, Prague, Czech Republic*
+
+[Indico](https://indico.cern.ch/event/896088/contributions/4781899/)
+{{< /article >}}
+
+---
+
+## Other presentations
+
+{{< article >}}
+### Spectroscopy of Kaonic Nuclei via \(^{12}\mathrm{C}(K^-,p)\) Reaction at J-PARC
+
+**NUSYS2024**
+{{< /article >}}
+
+{{< article >}}
+### Exclusive study of Kaon-nucleons many-body system via \(^{12}\mathrm{C}(K^-,p)\) at J-PARC
+
+**J-PARC Symposium 2024**
+{{< /article >}}
+
+{{< article >}}
+### HypTPC を用いたK中間子原子核の解析 (2)
+
+**Physical Society of Japan, 79th Annual Meeting**
+
+*2024*
+{{< /article >}}
+
+{{< katex >}}

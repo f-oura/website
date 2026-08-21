@@ -1,0 +1,14 @@
+{{- $target := .Get "target" -}}
+{{- $href := .Get "href" -}}
+{{- if and $href (not (or (urls.Parse $href).Scheme (strings.HasPrefix $href "#") (strings.HasPrefix $href "mailto:"))) -}}
+  {{- $href = relURL $href -}}
+{{- end -}}
+<a
+  class="button button--secondary shortcode-button"
+  {{ with $href }}href="{{ . }}"{{ end }}
+  {{ with $target }}target="{{ . }}"{{ end }}
+  {{ if eq $target "_blank" }}rel="noopener noreferrer"{{ end }}
+  {{ with .Get "download" }}download="{{ . }}"{{ end }}
+>
+  {{ .Inner | strings.TrimSpace }}{{ if eq $target "_blank" }} <span aria-hidden="true">↗</span>{{ end }}
+</a>

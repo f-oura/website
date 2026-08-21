@@ -30,6 +30,17 @@
   pageRef = "news"
   weight = 60
 
+# Hidden until the simulators are ready to show.
+# [[main]]
+#   name = "Software"
+#   pageRef = "software"
+#   weight = 70
+
+[[main]]
+  name = "Contact"
+  pageRef = "links"
+  weight = 80
+
 # -- Footer Menu --
 
 [[footer]]

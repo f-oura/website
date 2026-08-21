@@ -1,17 +1,13 @@
 ---
 title: "Fumiya Oura"
-description: "Nuclear and Particle Physics Researcher at JAEA"
+description: "Experimental nuclear physicist at JAEA, studying hadron and nuclear physics at J-PARC and RHIC"
 ---
 
-# Exploring Particles, Decoding the Universe
-
-I am a researcher at the Japan Atomic Energy Agency (JAEA), Advanced Science Research Center, exploring the fundamental nature of matter through nuclear and particle physics.
+I am a researcher at the Japan Atomic Energy Agency (JAEA), Advanced Science Research Center. My work is in experimental hadron and nuclear physics at J-PARC and RHIC.
 
 ## Research Focus
 
-My research explores the fundamental interactions of matter through:
-
-- **Kaon-Nucleus Interactions** — J-PARC E42/E88 experiments
-- **Heavy-Ion Collisions** — RHIC-STAR BES-II program
-
-I am passionate about understanding the strong force and the properties of nuclear matter under extreme conditions.
+- **\(\bar{K}\)-nucleus interaction** — exclusive \(^{12}\mathrm{C}(K^-,p)\) spectroscopy with HypTPC (E42)
+- **\(S=-2\) systems** — H-dibaryon search and \(\Xi\)-nucleus interaction in E42
+- **Two-particle correlations** — RHIC-STAR
+- **In-medium \(\phi\) meson mass** — J-PARC E88

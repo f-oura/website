@@ -5,7 +5,7 @@
 
   [en.params.author]
     name = "Fumiya Oura"
-    headline = "Nuclear & Particle Physics Researcher"
+    headline = "Experimental nuclear physicist"
     bio = "JAEA / Advanced Science Research Center"
 
 [ja]
@@ -15,5 +15,5 @@
 
   [ja.params.author]
     name = "大浦 文也"
-    headline = "原子核・素粒子物理学 研究者"
+    headline = "原子核実験物理の研究者"
     bio = "日本原子力研究開発機構 先端基礎研究センター"

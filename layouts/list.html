@@ -1,0 +1,31 @@
+{{ define "main" }}
+  <div class="page-shell">
+    <header class="page-header">
+      {{ if .Params.showBreadcrumbs | default (.Site.Params.list.showBreadcrumbs | default false) }}
+        <nav class="breadcrumbs" aria-label="Breadcrumb">{{ partial "breadcrumbs.html" . }}</nav>
+      {{ end }}
+      <p class="eyebrow">{{ upper (.Section | default "Index") }}</p>
+      <h1>{{ .Title | emojify }}</h1>
+      {{ with .Description }}<p class="page-header__description">{{ . }}</p>{{ end }}
+    </header>
+
+    <div class="content-layout">
+      <div class="editorial-prose">
+        {{ .Content | emojify }}
+      </div>
+    </div>
+
+    {{ if .Data.Pages }}
+      <section class="child-pages" aria-label="{{ .Title }}">
+        {{ range (.Paginate .Pages).Pages }}
+          <a class="child-page" href="{{ .RelPermalink }}">
+            <span>{{ with .Date }}{{ .Format "2006" }}{{ else }}{{ $.Title }}{{ end }}</span>
+            <strong>{{ .Title }}</strong>
+            {{ with .Description }}<small>{{ . }}</small>{{ end }}
+          </a>
+        {{ end }}
+      </section>
+      {{ partial "pagination.html" . }}
+    {{ end }}
+  </div>
+{{ end }}

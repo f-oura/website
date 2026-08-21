@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QGP → Hadronization Simulator</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --ui-bg: rgba(10, 10, 10, 0.85);
+      --ui-border: rgba(255, 255, 255, 0.1);
+      --text: #e0e0e0;
+      --text-dim: #888888;
+      --accent: #ff6b4a;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    canvas {
+      display: block;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+
+    /* Top overlay */
+    .top-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 20px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .title {
+      font-size: 14px;
+      font-weight: 300;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .title span {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    /* Stats panel */
+    .stats {
+      text-align: right;
+      font-size: 12px;
+      line-height: 1.8;
+      color: var(--text-dim);
+    }
+
+    .stats .value {
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Timeline bar */
+    .timeline {
+      position: fixed;
+      top: 80px;
+      left: 30px;
+      right: 30px;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .timeline-bar {
+      height: 2px;
+      background: rgba(255, 255, 255, 0.1);
+      position: relative;
+      border-radius: 1px;
+    }
+
+    .timeline-progress {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #ffaa44);
+      border-radius: 1px;
+      transition: width 0.1s ease;
+    }
+
+    .timeline-marker {
+      position: absolute;
+      top: -4px;
+      width: 10px;
+      height: 10px;
+      background: var(--text);
+      border-radius: 50%;
+      transform: translateX(-50%);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    }
+
+    .timeline-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* Bottom control panel */
+    .controls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 20px 30px 30px;
+      background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+      z-index: 10;
+    }
+
+    .controls-inner {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Temperature display */
+    .temp-display {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    .temp-value {
+      font-size: 32px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+    }
+
+    .temp-value .unit {
+      font-size: 16px;
+      color: var(--text-dim);
+      margin-left: 4px;
+    }
+
+    .temp-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 4px;
+    }
+
+    /* Slider */
+    .slider-container {
+      margin-bottom: 20px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--text);
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+      transition: transform 0.15s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 8px;
+    }
+
+    /* Buttons */
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    button {
+      padding: 10px 24px;
+      border: 1px solid var(--ui-border);
+      background: var(--ui-bg);
+      color: var(--text);
+      font-size: 12px;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    button.active {
+      background: var(--text);
+      color: var(--bg);
+    }
+
+    /* Quark tooltip */
+    .tooltip {
+      position: fixed;
+      padding: 12px 16px;
+      background: var(--ui-bg);
+      border: 1px solid var(--ui-border);
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.6;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      z-index: 100;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(5px);
+      transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .tooltip.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .tooltip-title {
+      font-weight: 500;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tooltip-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .tooltip-row {
+      color: var(--text-dim);
+    }
+
+    .tooltip-row span {
+      color: var(--text);
+    }
+
+    /* Phase indicator */
+    .phase-indicator {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: rgba(255, 255, 255, 0.15);
+      pointer-events: none;
+      z-index: 5;
+      transition: opacity 0.5s;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .top-overlay {
+        padding: 15px 20px;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .stats {
+        text-align: left;
+      }
+
+      .controls {
+        padding: 15px 20px 25px;
+      }
+
+      .temp-value {
+        font-size: 24px;
+      }
+
+      .buttons {
+        flex-wrap: wrap;
+      }
+
+      button {
+        padding: 8px 16px;
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <!-- Top overlay -->
+  <div class="top-overlay">
+    <div class="title"><span>QGP</span> → Hadronization</div>
+    <div class="stats">
+      <div>Free Quarks: <span class="value" id="statQuarks">60</span></div>
+      <div>Hadrons: <span class="value" id="statHadrons">0</span></div>
+      <div>Energy: <span class="value" id="statEnergy">0.0</span> GeV/fm³</div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="timeline">
+    <div class="timeline-bar">
+      <div class="timeline-progress" id="timelineProgress" style="width: 0%"></div>
+      <div class="timeline-marker" id="timelineMarker" style="left: 0%"></div>
+    </div>
+    <div class="timeline-labels">
+      <span>Big Bang</span>
+      <span>t ≈ 1μs</span>
+      <span>Hadron Era</span>
+    </div>
+  </div>
+
+  <!-- Phase indicator -->
+  <div class="phase-indicator" id="phaseIndicator">QGP Phase</div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="controls-inner">
+      <div class="temp-display">
+        <div class="temp-value"><span id="tempValue">2.00</span><span class="unit">Tc</span></div>
+        <div class="temp-label" id="tempLabel">Quark-Gluon Plasma</div>
+      </div>
+      <div class="slider-container">
+        <input type="range" id="tempSlider" min="0.2" max="2.0" step="0.01" value="2.0">
+        <div class="slider-labels">
+          <span>Hadron Phase</span>
+          <span>Tc (Phase Transition)</span>
+          <span>QGP Phase</span>
+        </div>
+      </div>
+      <div class="buttons">
+        <button id="btnPlay">▶ Play</button>
+        <button id="btnPause">⏸ Pause</button>
+        <button id="btnReset">↺ Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tooltip -->
+  <div class="tooltip" id="tooltip">
+    <div class="tooltip-title">
+      <span class="tooltip-color" id="tooltipColor"></span>
+      <span id="tooltipName">up quark (u)</span>
+    </div>
+    <div class="tooltip-row">Charge: <span id="tooltipCharge">+2/3</span></div>
+    <div class="tooltip-row">Color: <span id="tooltipColorName">Red</span></div>
+    <div class="tooltip-row">Velocity: <span id="tooltipVelocity">0.00c</span></div>
+  </div>
+
+  <script>
+    // ============================================
+    // Constants
+    // ============================================
+    const COLORS = {
+      red: '#FF4444',
+      green: '#44FF88',
+      blue: '#4488FF',
+      antiRed: '#00BBBB',
+      antiGreen: '#BB00BB',
+      antiBlue: '#BBBB00'
+    };
+
+    const QUARK_TYPES = {
+      u: { name: 'up', charge: '+2/3', mass: 1, radius: 6, color: '#FF4444' },
+      d: { name: 'down', charge: '-1/3', mass: 1, radius: 6, color: '#44FF88' },
+      s: { name: 'strange', charge: '-1/3', mass: 1.5, radius: 8, color: '#4488FF' },
+      c: { name: 'charm', charge: '+2/3', mass: 2, radius: 10, color: '#FFAA44' },
+      b: { name: 'bottom', charge: '-1/3', mass: 2.5, radius: 12, color: '#AA44FF' }
+    };
+
+    const COLOR_CHARGES = ['red', 'green', 'blue'];
+    const ANTI_COLORS = { red: 'antiRed', green: 'antiGreen', blue: 'antiBlue' };
+
+    // Physics parameters
+    const Tc = 1.0;
+    const HADRON_DISTANCE = 35;
+    const QUARK_COUNT = 60;
+    const GLUON_MAX = 40;
+
+    // ============================================
+    // State
+    // ============================================
+    let canvas, ctx;
+    let width, height;
+    let temperature = 2.0;
+    let isPlaying = false;
+    let quarks = [];
+    let gluons = [];
+    let hadrons = [];
+    let stars = [];
+    let selectedQuark = null;
+    let flashEffects = [];
+    let animationId = null;
+
+    // ============================================
+    // Quark Class
+    // ============================================
+    class Quark {
+      constructor(x, y, flavor, colorCharge, isAnti = false) {
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 4;
+        this.vy = (Math.random() - 0.5) * 4;
+        this.flavor = flavor;
+        this.colorCharge = colorCharge;
+        this.isAnti = isAnti;
+        this.inHadron = false;
+        this.hadronId = null;
+
+        const type = QUARK_TYPES[flavor];
+        this.mass = type.mass;
+        this.radius = type.radius;
+      }
+
+      get displayColor() {
+        if (this.isAnti) {
+          return COLORS[ANTI_COLORS[this.colorCharge]];
+        }
+        return COLORS[this.colorCharge];
+      }
+
+      update(dt) {
+        if (this.inHadron) return;
+
+        // Thermal velocity scaling with temperature
+        const thermalScale = temperature * 0.8;
+
+        // Random thermal motion
+        this.vx += (Math.random() - 0.5) * thermalScale * 0.5;
+        this.vy += (Math.random() - 0.5) * thermalScale * 0.5;
+
+        // Damping
+        const damping = 0.98;
+        this.vx *= damping;
+        this.vy *= damping;
+
+        // Speed limit based on temperature
+        const maxSpeed = thermalScale * 3;
+        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        if (speed > maxSpeed) {
+          this.vx = (this.vx / speed) * maxSpeed;
+          this.vy = (this.vy / speed) * maxSpeed;
+        }
+
+        // Update position
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Boundary bounce
+        const margin = 50;
+        if (this.x < margin) { this.x = margin; this.vx *= -0.8; }
+        if (this.x > width - margin) { this.x = width - margin; this.vx *= -0.8; }
+        if (this.y < margin + 60) { this.y = margin + 60; this.vy *= -0.8; }
+        if (this.y > height - margin - 150) { this.y = height - margin - 150; this.vy *= -0.8; }
+      }
+
+      draw(ctx) {
+        if (this.inHadron) return;
+
+        ctx.save();
+
+        // Glow effect
+        ctx.shadowColor = this.displayColor;
+        ctx.shadowBlur = 12;
+
+        // Main circle
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.displayColor;
+        ctx.fill();
+
+        // Label
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#000';
+        ctx.font = `bold ${this.radius}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const label = this.isAnti ? this.flavor + '̄' : this.flavor;
+        ctx.fillText(label, this.x, this.y);
+
+        ctx.restore();
+      }
+
+      getSpeed() {
+        return Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+      }
+    }
+
+    // ============================================
+    // Gluon Class
+    // ============================================
+    class Gluon {
+      constructor(q1, q2) {
+        this.q1 = q1;
+        this.q2 = q2;
+        this.life = 10 + Math.random() * 10;
+        this.maxLife = this.life;
+      }
+
+      update() {
+        this.life -= 1;
+        return this.life > 0;
+      }
+
+      draw(ctx) {
+        if (this.q1.inHadron || this.q2.inHadron) return;
+
+        const alpha = (this.life / this.maxLife) * 0.6;
+        ctx.save();
+        ctx.strokeStyle = `rgba(238, 238, 238, ${alpha})`;
+        ctx.lineWidth = 1.5;
+
+        // Draw wavy line
+        const dx = this.q2.x - this.q1.x;
+        const dy = this.q2.y - this.q1.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const steps = Math.floor(dist / 6);
+
+        ctx.beginPath();
+        ctx.moveTo(this.q1.x, this.q1.y);
+
+        for (let i = 1; i <= steps; i++) {
+          const t = i / steps;
+          const x = this.q1.x + dx * t;
+          const y = this.q1.y + dy * t;
+          const perpX = -dy / dist;
+          const perpY = dx / dist;
+          const wave = Math.sin(i * 1.2) * 4;
+          ctx.lineTo(x + perpX * wave, y + perpY * wave);
+        }
+
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // ============================================
+    // Hadron Class
+    // ============================================
+    class Hadron {
+      constructor(quarks, type, name) {
+        this.quarks = quarks;
+        this.type = type; // 'baryon' or 'meson'
+        this.name = name;
+        this.id = Math.random().toString(36).substr(2, 9);
+        this.pulsePhase = 0;
+        this.formationFlash = 1.0;
+
+        quarks.forEach(q => {
+          q.inHadron = true;
+          q.hadronId = this.id;
+        });
+      }
+
+      get center() {
+        const x = this.quarks.reduce((sum, q) => sum + q.x, 0) / this.quarks.length;
+        const y = this.quarks.reduce((sum, q) => sum + q.y, 0) / this.quarks.length;
+        return { x, y };
+      }
+
+      update() {
+        this.pulsePhase += 0.1;
+        this.formationFlash *= 0.92;
+        this.orbitAngle = (this.orbitAngle || 0) + 0.02;
+
+        const center = this.center;
+
+        // Position quarks in fixed formation around center
+        if (this.type === 'baryon') {
+          // Triangular formation for baryons
+          const radius = 12;
+          this.quarks.forEach((q, i) => {
+            const angle = this.orbitAngle + (i * Math.PI * 2 / 3);
+            const targetX = center.x + Math.cos(angle) * radius;
+            const targetY = center.y + Math.sin(angle) * radius;
+            q.x += (targetX - q.x) * 0.15;
+            q.y += (targetY - q.y) * 0.15;
+          });
+        } else {
+          // Linear formation for mesons
+          const radius = 10;
+          this.quarks.forEach((q, i) => {
+            const angle = this.orbitAngle + (i * Math.PI);
+            const targetX = center.x + Math.cos(angle) * radius;
+            const targetY = center.y + Math.sin(angle) * radius;
+            q.x += (targetX - q.x) * 0.15;
+            q.y += (targetY - q.y) * 0.15;
+          });
+        }
+
+        // Move hadron as a whole
+        const vx = this.quarks.reduce((sum, q) => sum + q.vx, 0) / this.quarks.length;
+        const vy = this.quarks.reduce((sum, q) => sum + q.vy, 0) / this.quarks.length;
+
+        this.quarks.forEach(q => {
+          q.x += vx * 0.3;
+          q.y += vy * 0.3;
+        });
+
+        // Boundary
+        const c = this.center;
+        const margin = 80;
+        if (c.x < margin || c.x > width - margin) {
+          this.quarks.forEach(q => q.vx *= -0.5);
+        }
+        if (c.y < margin + 60 || c.y > height - margin - 150) {
+          this.quarks.forEach(q => q.vy *= -0.5);
+        }
+      }
+
+      draw(ctx) {
+        const center = this.center;
+        const radius = this.type === 'baryon' ? 28 : 22;
+        const pulse = 1 + Math.sin(this.pulsePhase) * 0.05;
+
+        ctx.save();
+
+        // Formation flash
+        if (this.formationFlash > 0.05) {
+          ctx.beginPath();
+          ctx.arc(center.x, center.y, radius * 2 * this.formationFlash, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 255, 255, ${this.formationFlash * 0.5})`;
+          ctx.fill();
+        }
+
+        // Bounding circle/ellipse
+        ctx.beginPath();
+        if (this.type === 'baryon') {
+          ctx.arc(center.x, center.y, radius * pulse, 0, Math.PI * 2);
+        } else {
+          ctx.ellipse(center.x, center.y, radius * pulse * 1.2, radius * pulse * 0.8, 0, 0, Math.PI * 2);
+        }
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.fill();
+
+        // Draw quarks inside
+        this.quarks.forEach(q => {
+          ctx.beginPath();
+          ctx.arc(q.x, q.y, q.radius * 0.8, 0, Math.PI * 2);
+          ctx.fillStyle = q.displayColor;
+          ctx.shadowColor = q.displayColor;
+          ctx.shadowBlur = 6;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          // Label
+          ctx.fillStyle = '#000';
+          ctx.font = `bold ${q.radius * 0.8}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(q.flavor, q.x, q.y);
+        });
+
+        // Hadron label
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.name, center.x, center.y + radius + 12);
+
+        ctx.restore();
+      }
+    }
+
+    // ============================================
+    // Initialization
+    // ============================================
+    function init() {
+      canvas = document.getElementById('canvas');
+      ctx = canvas.getContext('2d');
+
+      resize();
+      window.addEventListener('resize', resize);
+
+      createStars();
+      createQuarks();
+
+      setupEventListeners();
+
+      loop();
+    }
+
+    function resize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+
+    function createStars() {
+      stars = [];
+      for (let i = 0; i < 200; i++) {
+        stars.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          size: Math.random() * 1.5,
+          alpha: Math.random() * 0.5 + 0.2
+        });
+      }
+    }
+
+    function createQuarks() {
+      quarks = [];
+      hadrons = [];
+      gluons = [];
+
+      // Distribution: u:d:s:c:b = 40:40:15:4:1
+      const distribution = [
+        ...Array(24).fill('u'),
+        ...Array(24).fill('d'),
+        ...Array(9).fill('s'),
+        ...Array(2).fill('c'),
+        ...Array(1).fill('b')
+      ];
+
+      // Create quarks and anti-quarks (70% quarks, 30% anti-quarks for baryon formation)
+      for (let i = 0; i < QUARK_COUNT; i++) {
+        const flavor = distribution[i % distribution.length];
+        const colorCharge = COLOR_CHARGES[Math.floor(Math.random() * 3)];
+        const isAnti = Math.random() < 0.3;
+
+        const x = 100 + Math.random() * (width - 200);
+        const y = 150 + Math.random() * (height - 400);
+
+        quarks.push(new Quark(x, y, flavor, colorCharge, isAnti));
+      }
+    }
+
+    // ============================================
+    // Physics
+    // ============================================
+    function updatePhysics() {
+      const dt = 1;
+
+      // Update quarks
+      quarks.forEach(q => q.update(dt));
+
+      // Spawn gluons in QGP phase
+      if (temperature > Tc && gluons.length < GLUON_MAX && Math.random() < temperature * 0.15) {
+        const freeQuarks = quarks.filter(q => !q.inHadron);
+        if (freeQuarks.length >= 2) {
+          const i = Math.floor(Math.random() * freeQuarks.length);
+          let j = Math.floor(Math.random() * freeQuarks.length);
+          while (j === i) j = Math.floor(Math.random() * freeQuarks.length);
+
+          const dist = Math.hypot(freeQuarks[i].x - freeQuarks[j].x, freeQuarks[i].y - freeQuarks[j].y);
+          if (dist < 150) {
+            gluons.push(new Gluon(freeQuarks[i], freeQuarks[j]));
+          }
+        }
+      }
+
+      // Update gluons
+      gluons = gluons.filter(g => g.update());
+
+      // Hadron formation in hadronization phase
+      if (temperature < Tc) {
+        checkHadronFormation();
+      }
+
+      // Update hadrons
+      hadrons.forEach(h => h.update());
+
+      // Apply confinement forces when T < Tc
+      if (temperature < Tc) {
+        applyConfinementForces();
+      }
+    }
+
+    function applyConfinementForces() {
+      const sigma = (1 - temperature / Tc) * 3; // String tension
+      const freeQuarks = quarks.filter(q => !q.inHadron);
+      const quarksOnly = freeQuarks.filter(q => !q.isAnti);
+
+      // Meson formation: quark-antiquark attraction
+      for (let i = 0; i < freeQuarks.length; i++) {
+        for (let j = i + 1; j < freeQuarks.length; j++) {
+          const q1 = freeQuarks[i];
+          const q2 = freeQuarks[j];
+
+          // Only attract if colors can form neutral (meson)
+          if (canFormMeson(q1, q2)) {
+            const dx = q2.x - q1.x;
+            const dy = q2.y - q1.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 200 && dist > 1) {
+              const force = sigma * 0.015;
+              q1.vx += (dx / dist) * force;
+              q1.vy += (dy / dist) * force;
+              q2.vx -= (dx / dist) * force;
+              q2.vy -= (dy / dist) * force;
+            }
+          }
+        }
+      }
+
+      // Baryon formation: attract quarks with complementary colors (R-G, G-B, R-B)
+      for (let i = 0; i < quarksOnly.length; i++) {
+        for (let j = i + 1; j < quarksOnly.length; j++) {
+          const q1 = quarksOnly[i];
+          const q2 = quarksOnly[j];
+
+          // Different colors attract (to form RGB baryon)
+          if (q1.colorCharge !== q2.colorCharge) {
+            const dx = q2.x - q1.x;
+            const dy = q2.y - q1.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 180 && dist > 1) {
+              const force = sigma * 0.025; // Stronger force for baryons
+              q1.vx += (dx / dist) * force;
+              q1.vy += (dy / dist) * force;
+              q2.vx -= (dx / dist) * force;
+              q2.vy -= (dy / dist) * force;
+            }
+          }
+        }
+      }
+    }
+
+    function canFormMeson(q1, q2) {
+      // Quark-antiquark with matching colors
+      if (q1.isAnti !== q2.isAnti) {
+        return q1.colorCharge === q2.colorCharge;
+      }
+      return false;
+    }
+
+    function checkHadronFormation() {
+      const freeQuarks = quarks.filter(q => !q.inHadron);
+
+      // At very low temperature, force complete hadronization
+      const forceHadronization = temperature < 0.4;
+      const distanceMultiplier = forceHadronization ? 100 : 1.3;
+
+      // Check for baryons FIRST (3 quarks with R+G+B) - prioritize baryon formation
+      const quarksOnly = freeQuarks.filter(q => !q.isAnti && !q.inHadron);
+
+      // Group quarks by color for efficient baryon formation
+      const byColor = {
+        red: quarksOnly.filter(q => q.colorCharge === 'red' && !q.inHadron),
+        green: quarksOnly.filter(q => q.colorCharge === 'green' && !q.inHadron),
+        blue: quarksOnly.filter(q => q.colorCharge === 'blue' && !q.inHadron)
+      };
+
+      // Form baryons from RGB triplets
+      while (byColor.red.length > 0 && byColor.green.length > 0 && byColor.blue.length > 0) {
+        const r = byColor.red[0];
+        const g = byColor.green[0];
+        const b = byColor.blue[0];
+
+        if (r.inHadron || g.inHadron || b.inHadron) {
+          if (r.inHadron) byColor.red.shift();
+          if (g.inHadron) byColor.green.shift();
+          if (b.inHadron) byColor.blue.shift();
+          continue;
+        }
+
+        // Check distance (or force if low temp)
+        const cx = (r.x + g.x + b.x) / 3;
+        const cy = (r.y + g.y + b.y) / 3;
+        const maxDist = Math.max(
+          Math.hypot(r.x - cx, r.y - cy),
+          Math.hypot(g.x - cx, g.y - cy),
+          Math.hypot(b.x - cx, b.y - cy)
+        );
+
+        if (maxDist < HADRON_DISTANCE * distanceMultiplier) {
+          const name = getBaryonName(r, g, b);
+          hadrons.push(new Hadron([r, g, b], 'baryon', name));
+          byColor.red.shift();
+          byColor.green.shift();
+          byColor.blue.shift();
+        } else if (!forceHadronization) {
+          break;
+        } else {
+          // Force: teleport quarks together
+          g.x = r.x + 15;
+          g.y = r.y;
+          b.x = r.x + 7;
+          b.y = r.y + 12;
+          const name = getBaryonName(r, g, b);
+          hadrons.push(new Hadron([r, g, b], 'baryon', name));
+          byColor.red.shift();
+          byColor.green.shift();
+          byColor.blue.shift();
+        }
+      }
+
+      // Then check for mesons (quark + antiquark)
+      const remainingFree = quarks.filter(q => !q.inHadron);
+      const antiQuarks = remainingFree.filter(q => q.isAnti);
+      const normalQuarks = remainingFree.filter(q => !q.isAnti);
+
+      for (const anti of antiQuarks) {
+        if (anti.inHadron) continue;
+
+        // Find matching quark (same color)
+        const match = normalQuarks.find(q =>
+          !q.inHadron && q.colorCharge === anti.colorCharge
+        );
+
+        if (match) {
+          const dist = Math.hypot(anti.x - match.x, anti.y - match.y);
+
+          if (dist < HADRON_DISTANCE * distanceMultiplier || forceHadronization) {
+            if (forceHadronization && dist > HADRON_DISTANCE) {
+              // Teleport together
+              match.x = anti.x + 12;
+              match.y = anti.y;
+            }
+            const name = getMesonName(anti, match);
+            hadrons.push(new Hadron([anti, match], 'meson', name));
+          }
+        }
+      }
+
+      // If still free quarks at very low temp, force remaining into mesons by changing colors
+      if (forceHadronization && temperature < 0.25) {
+        const stillFree = quarks.filter(q => !q.inHadron);
+        while (stillFree.length >= 2) {
+          const q1 = stillFree.shift();
+          const q2 = stillFree.shift();
+          if (!q1 || !q2) break;
+
+          // Make one anti if both same type
+          if (q1.isAnti === q2.isAnti) {
+            q2.isAnti = !q1.isAnti;
+          }
+          // Match colors
+          q2.colorCharge = q1.colorCharge;
+          q2.x = q1.x + 12;
+          q2.y = q1.y;
+
+          const name = getMesonName(q1, q2);
+          hadrons.push(new Hadron([q1, q2], 'meson', name));
+        }
+      }
+    }
+
+    function getMesonName(q1, q2) {
+      const quark = q1.isAnti ? q2 : q1;
+      const anti = q1.isAnti ? q1 : q2;
+
+      if ((quark.flavor === 'u' && anti.flavor === 'd') ||
+          (quark.flavor === 'd' && anti.flavor === 'u')) {
+        return quark.flavor === 'u' ? 'π⁺' : 'π⁻';
+      }
+      if (quark.flavor === anti.flavor) {
+        if (quark.flavor === 'c') return 'J/ψ';
+        return 'π⁰';
+      }
+      if (quark.flavor === 's' || anti.flavor === 's') {
+        return 'K';
+      }
+      return 'M';
+    }
+
+    function getBaryonName(q1, q2, q3) {
+      const flavors = [q1.flavor, q2.flavor, q3.flavor].sort().join('');
+      if (flavors === 'duu') return 'p';
+      if (flavors === 'ddu') return 'n';
+      if (flavors.includes('s')) return 'Λ';
+      return 'B';
+    }
+
+    // ============================================
+    // Rendering
+    // ============================================
+    function render() {
+      // Clear with temperature-based tint
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, width, height);
+
+      // Temperature overlay
+      if (temperature > Tc) {
+        const alpha = (temperature - Tc) * 0.08;
+        ctx.fillStyle = `rgba(255, 50, 30, ${alpha})`;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      // Stars
+      ctx.fillStyle = '#ffffff';
+      stars.forEach(star => {
+        ctx.globalAlpha = star.alpha;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+
+      // Draw confinement strings (when T < Tc)
+      if (temperature < Tc) {
+        drawConfinementStrings();
+      }
+
+      // Draw gluons
+      gluons.forEach(g => g.draw(ctx));
+
+      // Draw free quarks
+      quarks.filter(q => !q.inHadron).forEach(q => q.draw(ctx));
+
+      // Draw hadrons
+      hadrons.forEach(h => h.draw(ctx));
+
+      // Update UI
+      updateUI();
+    }
+
+    function drawConfinementStrings() {
+      const freeQuarks = quarks.filter(q => !q.inHadron);
+      const sigma = (1 - temperature / Tc);
+
+      ctx.save();
+
+      for (let i = 0; i < freeQuarks.length; i++) {
+        for (let j = i + 1; j < freeQuarks.length; j++) {
+          const q1 = freeQuarks[i];
+          const q2 = freeQuarks[j];
+
+          if (!canFormMeson(q1, q2)) continue;
+
+          const dist = Math.hypot(q1.x - q2.x, q1.y - q2.y);
+          if (dist > 150) continue;
+
+          const alpha = Math.max(0, 1 - dist / 150) * sigma * 0.5;
+          const lineWidth = 1 + sigma * 3;
+
+          // Color based on tension
+          const tension = dist / 100;
+          const r = Math.min(255, 200 + tension * 55);
+          const g = Math.max(100, 200 - tension * 100);
+          const b = Math.max(50, 150 - tension * 100);
+
+          ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+          ctx.lineWidth = lineWidth;
+          ctx.beginPath();
+          ctx.moveTo(q1.x, q1.y);
+          ctx.lineTo(q2.x, q2.y);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function updateUI() {
+      // Temperature display
+      document.getElementById('tempValue').textContent = temperature.toFixed(2);
+
+      // Phase label
+      let label = '';
+      if (temperature > 1.2) label = 'Quark-Gluon Plasma';
+      else if (temperature > 0.8) label = 'Phase Transition';
+      else label = 'Hadron Phase';
+      document.getElementById('tempLabel').textContent = label;
+      document.getElementById('phaseIndicator').textContent = label;
+
+      // Stats
+      const freeQuarks = quarks.filter(q => !q.inHadron).length;
+      document.getElementById('statQuarks').textContent = freeQuarks;
+      document.getElementById('statHadrons').textContent = hadrons.length;
+
+      const energy = (temperature * 2.5).toFixed(1);
+      document.getElementById('statEnergy').textContent = energy;
+
+      // Timeline
+      const progress = ((2.0 - temperature) / 1.8) * 100;
+      document.getElementById('timelineProgress').style.width = progress + '%';
+      document.getElementById('timelineMarker').style.left = progress + '%';
+    }
+
+    // ============================================
+    // Animation Loop
+    // ============================================
+    function loop() {
+      try {
+        updatePhysics();
+        render();
+
+        // Auto temperature decrease when playing
+        if (isPlaying && temperature > 0.2) {
+          temperature -= 0.002;
+          document.getElementById('tempSlider').value = temperature;
+        }
+      } catch (e) {
+        console.error('Animation error:', e);
+      }
+
+      animationId = requestAnimationFrame(loop);
+    }
+
+    // ============================================
+    // Event Listeners
+    // ============================================
+    function setupEventListeners() {
+      // Temperature slider
+      document.getElementById('tempSlider').addEventListener('input', (e) => {
+        temperature = parseFloat(e.target.value);
+      });
+
+      // Play button
+      document.getElementById('btnPlay').addEventListener('click', () => {
+        isPlaying = true;
+        document.getElementById('btnPlay').classList.add('active');
+        document.getElementById('btnPause').classList.remove('active');
+      });
+
+      // Pause button
+      document.getElementById('btnPause').addEventListener('click', () => {
+        isPlaying = false;
+        document.getElementById('btnPause').classList.add('active');
+        document.getElementById('btnPlay').classList.remove('active');
+      });
+
+      // Reset button
+      document.getElementById('btnReset').addEventListener('click', () => {
+        isPlaying = false;
+        temperature = 2.0;
+        document.getElementById('tempSlider').value = 2.0;
+        document.getElementById('btnPlay').classList.remove('active');
+        document.getElementById('btnPause').classList.remove('active');
+        createQuarks();
+      });
+
+      // Canvas click for quark selection
+      canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Find clicked quark
+        let found = null;
+        for (const q of quarks) {
+          if (q.inHadron) continue;
+          const dist = Math.hypot(q.x - x, q.y - y);
+          if (dist < q.radius + 5) {
+            found = q;
+            break;
+          }
+        }
+
+        const tooltip = document.getElementById('tooltip');
+
+        if (found) {
+          selectedQuark = found;
+          const type = QUARK_TYPES[found.flavor];
+
+          document.getElementById('tooltipName').textContent =
+            `${type.name} quark (${found.isAnti ? found.flavor + '̄' : found.flavor})`;
+          document.getElementById('tooltipCharge').textContent =
+            found.isAnti ? (type.charge.startsWith('+') ? type.charge.replace('+', '-') : type.charge.replace('-', '+')) : type.charge;
+          document.getElementById('tooltipColorName').textContent =
+            found.isAnti ? 'Anti-' + found.colorCharge : found.colorCharge;
+          document.getElementById('tooltipColor').style.backgroundColor = found.displayColor;
+          document.getElementById('tooltipVelocity').textContent =
+            (found.getSpeed() / 5).toFixed(2) + 'c';
+
+          tooltip.style.left = (e.clientX + 15) + 'px';
+          tooltip.style.top = (e.clientY - 10) + 'px';
+          tooltip.classList.add('visible');
+        } else {
+          selectedQuark = null;
+          tooltip.classList.remove('visible');
+        }
+      });
+
+      // Hide tooltip on scroll
+      window.addEventListener('scroll', () => {
+        document.getElementById('tooltip').classList.remove('visible');
+      });
+
+      // Window resize
+      window.addEventListener('resize', () => {
+        createStars();
+      });
+    }
+
+    // Start
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
